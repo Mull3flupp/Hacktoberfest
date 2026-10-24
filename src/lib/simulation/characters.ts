@@ -1,9 +1,9 @@
 /**
- * Sechs feste, bewusst überzeichnete Bürgerfiguren. Sie reagieren auf jede Analyse
+ * Sieben feste, bewusst überzeichnete Bürgerfiguren. Sie reagieren auf jede Analyse
  * und machen sichtbar, dass dieselbe Maßnahme sehr unterschiedlich ankommt.
  * Die Figuren sind fiktive Stereotype, keine Abbildung realer Gruppen.
  */
-export const CHARACTER_IDS = ["finance-bro", "oma", "landwirt", "umwelt", "berlin", "karen"] as const;
+export const CHARACTER_IDS = ["finance-bro", "oma", "landwirt", "umwelt", "berlin", "karen", "startup"] as const;
 export type CharacterId = (typeof CHARACTER_IDS)[number];
 
 export interface Character {
@@ -46,6 +46,11 @@ export const characters: Character[] = [
     id: "karen", name: "Karen", role: "Mutter von zwei Kindern",
     persona: "Mutter von zwei Kindern, politisch gemäßigt ohne extreme Ansichten. Alles dreht sich um ihre Kinder: Sicherheit, Schule, Kita. Will Ruhe und dass alles seine Ordnung hat, findet Umweltschutz okay, solange er den Alltag nicht stört. Möchte gern mal mit der zuständigen Stelle sprechen.",
     idle: "Denkt hier eigentlich jemand an die Kinder?",
+  },
+  {
+    id: "startup", name: "Konsti", role: "Startup-Aktivist",
+    persona: "Gründer im blauen Zipper mit weißem Q-Logo. Liberal und technologiegläubig: Für jedes Problem, auch den Klimawandel, gibt es ein Startup, das es löst. Fordert, Gründungen schnell und einfach zu machen, Innovation zu fördern, bessere Rahmenbedingungen zu schaffen und Bürokratie radikal abzubauen. Spricht gern von Disruption, Skalierung und Pitch Decks.",
+    idle: "Dafür gibt's bestimmt bald ein Startup.",
   },
 ];
 

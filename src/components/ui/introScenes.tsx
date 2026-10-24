@@ -145,7 +145,7 @@ export function CountingScene() {
   );
 }
 
-/** 3 · Die Menschen: ruhige Straße als Bühne für die sechs Figuren */
+/** 3 · Die Menschen: ruhige Straße als Bühne für die Bürgerfiguren */
 export function PeopleScene() {
   return (
     <Scene

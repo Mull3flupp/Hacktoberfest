@@ -41,8 +41,8 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 | `StatTile`, `InstitutionBadge` | Dashboard-Kennzahlen (fiktive Indexwerte) und Institutionenstatus |
 | `MicButton` | Mikrofon-Button, nur Darstellung (`idle`, `recording`, `processing`, `unavailable`) |
 | `ProfessorIgel`, `Gruender`, `RichterFrosch`, `CitizenBlob`, `GroupBlob` | Figuren als 16×16-Sprites |
-| `PersonSprite` | Die sechs festen Bürgerfiguren (Finn, Oma Gisela, Bauer Heinz, Lea, Mika, Karen) |
-| `PeopleBar` | Leiste unten im Spiel: die sechs Figuren mit Sprechblase und Haltung (+ dafür, − dagegen, ? Bedenken, ~ zwiespältig) |
+| `PersonSprite` | Die sieben festen Bürgerfiguren (Finn, Oma Gisela, Bauer Heinz, Lea, Mika, Karen, Konsti) |
+| `PeopleBar` | Leiste unten im Spiel: die Bürgerfiguren mit Sprechblase und Haltung (+ dafür, − dagegen, ? Bedenken, ~ zwiespältig) |
 | `IntroSlides` | Durchklickbare Intro-Show mit animierten Pixel-Szenen, endet mit „Du wurdest gewählt!“ |
 
 ## Intro und Bürgerfiguren

@@ -132,6 +132,27 @@ const KAREN: SpriteGrid = [
 ];
 const KAREN_COLORS: SpritePalette = { y: "#f2d16b", s: SKIN, k: "var(--px-ink)", p: "#e87fae", j: "#3e6fb0", c: "#6b4423", a: "#59c06b", e: "#f2d16b", f: "#f28c38" };
 
+/* ---------- Konsti, Startup-Aktivist: blauer Zipper mit weißem Q, weiße Sneaker ---------- */
+const STARTUP: SpriteGrid = [
+  "................",
+  "....hhhhhhhh....",
+  "...hhhhhhhhhhh..",
+  "...hhhhhhhhhh...",
+  "...hsssssssss...",
+  "...sskssssksss..",
+  "...ssssssssss...",
+  "....sskkkkss....",
+  ".....ssssss.....",
+  "...bbbbzzbbbb...",
+  "..bbbbwwwbbbbb..",
+  ".bbbbwbbbwbbbbb.",
+  ".bbbbwbwbwbbbbb.",
+  ".sbbbwbbwbbbbbs.",
+  "..bbbbwwbwbbbb..",
+  "...ww......ww...",
+];
+const STARTUP_COLORS: SpritePalette = { h: "#c9a063", s: SKIN, k: "var(--px-ink)", b: "#2f6fdb", z: "#c9c3b6", w: "#ffffff" };
+
 const SPRITES: Record<CharacterId, [SpriteGrid, SpritePalette]> = {
   "finance-bro": [FINANCE_BRO, FINANCE_BRO_COLORS],
   oma: [OMA, OMA_COLORS],
@@ -139,9 +160,10 @@ const SPRITES: Record<CharacterId, [SpriteGrid, SpritePalette]> = {
   umwelt: [UMWELT, UMWELT_COLORS],
   berlin: [BERLIN, BERLIN_COLORS],
   karen: [KAREN, KAREN_COLORS],
+  startup: [STARTUP, STARTUP_COLORS],
 };
 
-/** Eine der sechs festen Bürgerfiguren als Pixel-Sprite. */
+/** Eine der sieben festen Bürgerfiguren als Pixel-Sprite. */
 export function PersonSprite({ id, size = 64, bob = true, label, className }: PersonProps) {
   const [grid, palette] = SPRITES[id];
   return <PixelSprite grid={grid} palette={palette} size={size} bob={bob} label={label} className={className} />;

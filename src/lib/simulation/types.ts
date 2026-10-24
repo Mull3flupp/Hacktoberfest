@@ -21,7 +21,7 @@ export interface WorldAnalysis {
   immediate: WorldEffects;
   delayed: { afterRounds: number; description: string; effects: WorldEffects }[];
   reactions: ActorReaction[];
-  /** Fehlt bei älteren Spielständen; sonst je eine Reaktion der sechs festen Figuren. */
+  /** Fehlt bei älteren Spielständen; sonst je eine Reaktion der festen Figuren. */
   characterReactions?: CharacterReaction[];
   followUps: string[];
   factsToAdd: string[];

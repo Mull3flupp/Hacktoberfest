@@ -84,6 +84,7 @@ const SAMPLE_REACTIONS: CharacterReaction[] = [
   { characterId: "umwelt", stance: "support", quote: "Endlich! Aber bitte klimafreundlich sanieren." },
   { characterId: "berlin", stance: "support", quote: "Guter Anfang. Nächster Schritt: Enteignen!" },
   { characterId: "karen", stance: "concern", quote: "Und wo bleiben die Kitaplätze in unserem Viertel?" },
+  { characterId: "startup", stance: "oppose", quote: "Deckel? Lieber ein Proptech-Startup, das Wohnraum skaliert!" },
 ];
 
 /* ---------- kleine Hilfen für die Demo ---------- */

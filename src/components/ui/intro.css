@@ -154,10 +154,10 @@
   opacity: 0.7;
 }
 
-/* Die sechs Figuren erscheinen nacheinander */
+/* Die Figuren erscheinen nacheinander */
 .intro-people {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
   margin: 4px 0 0;
   padding: 0;
@@ -225,7 +225,7 @@
   .intro { padding: 12px 8px 16px; }
   .intro__card { padding: 16px 14px 10px; }
   .intro__text { font-size: 0.95rem; }
-  .intro-people { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .intro-people { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .intro .intro__button { padding: 0 12px; font-size: 0.85rem; }
 }
 

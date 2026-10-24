@@ -28,7 +28,7 @@ export type PeopleBarProps = {
 };
 
 /**
- * Die sechs Bürgerfiguren als Leiste am unteren Bildschirmrand.
+ * Die Bürgerfiguren als Leiste am unteren Bildschirmrand.
  * Bei neuen Reaktionen sprechen die Figuren nacheinander, ein Klick wählt eine Figur gezielt aus.
  */
 export function PeopleBar({ reactions = [], caption, className }: PeopleBarProps) {
