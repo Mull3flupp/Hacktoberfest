@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+/* Baseline styles stay below Tailwind utilities used by the pixel UI. */
+@layer base {
 :root { color-scheme: light; }
 * { box-sizing: border-box; }
 body { margin: 0; color: #192329; background: #f6f7f8; font: 16px/1.6 Arial, Helvetica, sans-serif; }
@@ -48,6 +50,7 @@ li { margin-bottom: 6px; }
 .quiz-wrong { border-color: #a6583a; background: #fff0eb; }
 .card-footer { margin-top: 16px; }
 @media (max-width: 600px) { main { padding: 22px 14px 40px; } .panel { padding: 18px; } .metrics { gap: 6px; } .metric { padding: 10px; } .metric strong { font-size: 1.25rem; } .metric .muted { font-size: .75rem; } }
+}
 
 /* A quiet desk for a more consequential game. */
 body { background: #eeeDE7; color: #193036; }

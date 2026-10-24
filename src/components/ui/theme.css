@@ -40,6 +40,12 @@
   font-family: var(--font-body), "Nunito", system-ui, sans-serif;
 }
 
+@layer base {
+  .px-root button { border-radius: 0; }
+  .px-root ul { padding-left: 0; }
+  .px-root li { margin-bottom: 0; }
+}
+
 /* Pixel-Schrift nur für Überschriften und Zahlen */
 .font-pixel {
   font-family: var(--font-pixel), "Pixelify Sans", monospace;

@@ -33,6 +33,10 @@ npm run dev
 
 Für einen Produktionslauf: `npm run build`, danach `npm start`.
 
+## Pixel-UI ansehen
+
+Die neue [UI-Demo](http://localhost:3000/ui-demo/) zeigt die Pixel-Figuren, Buttons, Kennzahlen, Lernkarten und interaktiven Beispiel-Szenen aus PR #1. Sie verwendet Beispieldaten; das spielbare Gemma-Spiel liegt weiterhin auf der [Startseite](http://localhost:3000/). Die Komponenten und ihre Verwendung sind in [src/components/ui/README.md](src/components/ui/README.md) dokumentiert.
+
 ## Spielablauf
 
 1. Landesname, Vision, zwei Versprechen und Ausgangsverfassung wählen. Dieser Einstieg verwendet feste Ausgangsbedingungen.

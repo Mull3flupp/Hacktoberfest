@@ -149,13 +149,13 @@ export default function UiDemoPage() {
     <main className="mx-auto flex w-full max-w-[480px] flex-col gap-8 px-4 pb-72 pt-4">
       {/* Kopfzeile wie im Spiel */}
       <div className="sticky top-0 z-40 -mx-4 flex items-center gap-3 border-b-[length:var(--px-border)] border-[var(--px-ink)] bg-[var(--px-paper)] px-4 py-3">
-        <button
-          type="button"
-          aria-label="Schließen"
+        <a
+          href="/"
+          aria-label="Zum Spiel"
           className="font-pixel text-2xl leading-none text-[var(--px-gray-dark)]"
         >
           ✕
-        </button>
+        </a>
         <ProgressBar value={step} max={10} className="flex-1" />
       </div>
 
@@ -164,6 +164,7 @@ export default function UiDemoPage() {
         <div>
           <h1 className="font-pixel text-3xl leading-tight">UI-Demo</h1>
           <p className="text-sm">Wenn ich König von Deutschland wär</p>
+          <p className="text-sm">Designvorschau mit Beispieldaten · <a href="/">Zum Spiel</a></p>
         </div>
       </header>
 

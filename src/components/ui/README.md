@@ -3,18 +3,18 @@
 Alle Komponenten liegen hier und werden über `src/components/ui/index.ts` importiert.
 Live ansehen: `/ui-demo`.
 
-## Einbinden (einmalig, macht A im Root-Layout)
+## Einbinden
 
-```css
-/* src/app/globals.css, nach dem Tailwind-Import */
-@import "../components/ui/theme.css";
-```
+Die Demo lädt Theme und Schriften in `src/app/ui-demo/layout.tsx`. Für weitere Oberflächen beide dort im jeweiligen Layout einbinden und den Inhalt mit `fontClasses` umschließen:
 
 ```tsx
-// src/app/layout.tsx
 import { fontClasses } from "@/components/ui/fonts";
-<body className={fontClasses}>…</body>
+import "@/components/ui/theme.css";
+
+<div className={fontClasses}>…</div>
 ```
+
+Die alten Grundstile in `globals.css` liegen in `@layer base`, damit Tailwind-Utilities die Pixel-Komponenten gestalten können. Das Theme setzt eckige Buttons und Listenabstände nur innerhalb von `.px-root`.
 
 ## Bausteine
 
