@@ -1,0 +1,106 @@
+/*
+ * Pixel-Theme für "Wenn ich König von Deutschland wär".
+ * Einbinden: in src/app/globals.css nach dem Tailwind-Import
+ *   @import "../components/ui/theme.css";
+ * Alle Farben als CSS-Variablen, damit das Team sie zentral ändern kann.
+ */
+
+:root {
+  /* 8 Grundfarben, hoher Kontrast auf --px-paper */
+  --px-ink: #1b1b2f; /* Rahmen, Text */
+  --px-paper: #fff8e7; /* Hintergrund */
+  --px-white: #ffffff; /* Karten */
+  --px-green: #3fae2a; /* richtig, weiter */
+  --px-red: #d93b3b; /* falsch, Warnung */
+  --px-blue: #2f6fdb; /* Auswahl, Info */
+  --px-yellow: #ffc93c; /* Hervorhebung, Gold */
+  --px-purple: #7b4fd6; /* Tutor, Wissen */
+
+  /* abgeleitete Töne für harte Unterschatten und helle Flächen */
+  --px-green-dark: #2a7d1b;
+  --px-green-light: #d9f5cf;
+  --px-red-dark: #9e2424;
+  --px-red-light: #fde0dd;
+  --px-blue-dark: #1f4d9e;
+  --px-blue-light: #dde8fc;
+  --px-yellow-dark: #c9930f;
+  --px-yellow-light: #fff1c7;
+  --px-purple-dark: #5432a0;
+  --px-purple-light: #ebe2fb;
+  --px-gray: #c9c3b6;
+  --px-gray-dark: #8d8678;
+
+  --px-border: 3px;
+  --px-shadow: 4px;
+}
+
+.px-root {
+  background: var(--px-paper);
+  color: var(--px-ink);
+  font-family: var(--font-body), "Nunito", system-ui, sans-serif;
+}
+
+/* Pixel-Schrift nur für Überschriften und Zahlen */
+.font-pixel {
+  font-family: var(--font-pixel), "Pixelify Sans", monospace;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.font-body {
+  font-family: var(--font-body), "Nunito", system-ui, sans-serif;
+}
+
+/* Sprites ohne Kantenglättung */
+.px-sprite {
+  image-rendering: pixelated;
+  shape-rendering: crispEdges;
+}
+
+/* leichtes Wippen der Figuren, in 2 harten Stufen */
+@keyframes px-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6.25%);
+  }
+}
+
+.px-bob {
+  animation: px-bob 1.2s steps(1, end) infinite;
+}
+
+/* Feedback-Panel fährt von unten rein */
+@keyframes px-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.px-sheet-in {
+  animation: px-sheet-in 220ms steps(4, end);
+}
+
+/* Aufnahme-Puls für den Mikrofon-Button */
+@keyframes px-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.px-blink {
+  animation: px-blink 0.8s steps(1, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .px-bob,
+  .px-sheet-in,
+  .px-blink {
+    animation: none;
+  }
+}
