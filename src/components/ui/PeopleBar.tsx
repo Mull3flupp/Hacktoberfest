@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
+import { speakCharacter } from "@/lib/audio/manager";
 import { characters, type CharacterId } from "@/lib/simulation/characters";
 import type { CharacterReaction } from "@/lib/simulation/types";
 import { bodyFont, pixelFont } from "./fonts";
@@ -81,7 +82,7 @@ export function PeopleBar({ reactions = [], caption, className }: PeopleBarProps
                     className={`people-person ${character.id === selected ? "is-selected" : ""} ${stance ? `people-person--${stance}` : ""}`}
                     aria-pressed={character.id === selected}
                     aria-label={`${character.name}, ${character.role}${stance ? `: ${STANCES[stance].label}` : ""}`}
-                    onClick={() => setSelected(character.id)}
+                    onClick={() => { setSelected(character.id); void speakCharacter(character.id, byId.get(character.id)?.quote ?? character.idle); }}
                   >
                     {stance && <span className={`people-person__badge people-stance--${stance}`} aria-hidden="true">{STANCES[stance].icon}</span>}
                     <PersonSprite id={character.id} size={40} bob={false} className="people-person__sprite" />

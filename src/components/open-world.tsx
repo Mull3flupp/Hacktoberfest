@@ -14,7 +14,7 @@ import { Cutscene, buildVisitors } from "./ui/Cutscene";
 import { PeopleBar } from "./ui/PeopleBar";
 import { VoicePanel, type VoiceBridge } from "./voice-panel";
 import { ProfessorVoice } from "./professor-voice";
-import { isMuted, playSoundEffect, setMuted, speakProfessor, startBackgroundMusic, stopCurrentSpeech, subscribeMuted } from "@/lib/audio/manager";
+import { isMuted, playSoundEffect, setMuted, speakCharacter as speakProfessorOrJudge, speakProfessor, startBackgroundMusic, stopCurrentSpeech, subscribeMuted } from "@/lib/audio/manager";
 import { FeedbackSheet, Gruender, MoodMeter, PixelButton, PixelCard, ProfessorIgel, ProgressBar, RichterFrosch, SceneCard, cn } from "./ui";
 import { AnalysisDetails, EffectChips, InstitutionNotes, PixelNotice, WorldMetrics, format } from "./world-panels";
 
@@ -131,6 +131,11 @@ export function OpenWorld() {
   }, [screen, setupStep, ready]);
 
   useEffect(() => { stopCurrentSpeech(); }, [screen]);
+
+  // Richter-Frosch stellt seine Verfassungsfrage hörbar.
+  useEffect(() => {
+    if (ready && screen === "setup" && setupStep === 2) void speakProfessorOrJudge("richter", "Wer darf dich begrenzen? Wer kann deine Entscheidungen prüfen, anfechten oder dich abwählen?");
+  }, [ready, screen, setupStep]);
 
   useEffect(() => {
     if (proposal && screen === "desk") analysisPanel.current?.scrollIntoView({ block: "start" });

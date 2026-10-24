@@ -106,8 +106,10 @@ async function loadSpeech(voice: VoiceKey, text: string, signal: AbortSignal) {
  * Spricht einen Text mit der festen Stimme einer Figur. Vorherige Sprache stoppt.
  * Löst nach dem Ende (oder bei Abbruch/Fehler) auf; Fehler bleiben still, der Text steht ja da.
  */
-export async function speak(voice: VoiceKey, text: string): Promise<void> {
+export async function speak(speaker: VoiceKey, text: string): Promise<void> {
   stopCurrentSpeech();
+  // Jede Figur bekommt eine Stimme: unbekannte Namen landen serverseitig stabil im Stimmenpool.
+  const voice = speaker.replace(/[^\p{L}\p{N} :._'-]/gu, "").trim().slice(0, 80) || "npc";
   const clean = text.replace(/[„“"]/g, "").trim().slice(0, 2500);
   if (!isBrowser() || muted || !clean) return;
   const token = speechToken;

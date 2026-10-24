@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { VOICES, isVoiceKey } from "../../../../lib/audio/voices";
+import { isVoiceKey, resolveVoice } from "../../../../lib/audio/voices";
 import { ApiError, errorResponse, readJson } from "../../../../lib/server/http";
 
 export const runtime = "nodejs";
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const parsed = bodySchema.safeParse(await readJson(request));
     if (!parsed.success) throw new ApiError(400, "Ungültige Sprachanfrage.");
     const { voice, text } = parsed.data;
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICES[voice as keyof typeof VOICES]}?output_format=mp3_44100_128`, {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${resolveVoice(voice)}?output_format=mp3_44100_128`, {
       method: "POST",
       headers: { "xi-api-key": apiKey, "Content-Type": "application/json", Accept: "audio/mpeg" },
       body: JSON.stringify({ text, model_id: "eleven_flash_v2_5", language_code: "de", voice_settings: { stability: 0.45, similarity_boost: 0.8 } }),

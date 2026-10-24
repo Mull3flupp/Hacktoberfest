@@ -39,7 +39,7 @@ if (force || !existsSync(join(outDir, "music.mp3"))) {
     method: "POST",
     headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
     body: JSON.stringify({
-      prompt: "Minimalist calm ambient background music for a political education game. Soft piano with subtle warm electronic textures, relaxed, steady, no vocals, no dramatic transitions, seamless loop.",
+      prompt: "Gentle calm classical instrumental background music for an educational game. Soft solo piano with light warm strings, elegant and relaxing, steady quiet dynamics, no vocals, no percussion, no dramatic or distracting sections, seamless loop.",
       music_length_ms: 90_000,
       force_instrumental: true,
     }),
