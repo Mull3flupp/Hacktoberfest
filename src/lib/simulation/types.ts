@@ -10,6 +10,8 @@ export interface WorldEffects {
 }
 export interface ActorReaction {
   name: string; role: string; stance: "support" | "concern" | "oppose" | "mixed"; quote: string;
+  /** Geschlecht der sprechenden Person; gemischte Gruppen können neutral sein. */
+  gender?: "male" | "female" | "neutral";
   /** Aussehen in der Zwischensequenz; fehlt bei älteren Analysen */
   look?: VisitorLook;
   /** Wie viele Personen gemeinsam auftreten (1–4) */
@@ -27,7 +29,7 @@ export interface WorldAnalysis {
   immediate: WorldEffects;
   delayed: { afterRounds: number; description: string; effects: WorldEffects }[];
   reactions: ActorReaction[];
-  /** Fehlt bei älteren Spielständen; sonst je eine Reaktion der festen Figuren. */
+  /** Legacy-Feld für bereits signierte Spielstände; neue Stimmen werden separat geladen. */
   characterReactions?: CharacterReaction[];
   followUps: string[];
   factsToAdd: string[];

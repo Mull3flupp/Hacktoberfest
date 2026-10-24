@@ -96,6 +96,16 @@
   margin: 0;
 }
 
+.people-bar__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+}
+
 .people-bar .people-person {
   position: relative;
   display: flex;

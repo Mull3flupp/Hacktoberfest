@@ -38,6 +38,7 @@ export const worldAnalysisSchema = z.object({
   delayed: z.array(z.object({ afterRounds: z.number().int().min(1).max(6), description: text(1000), effects: worldEffectsSchema }).strict()).max(6),
   reactions: z.array(z.object({
     name: text(100), role: text(160), stance: z.enum(["support", "concern", "oppose", "mixed"]), quote: text(1000),
+    gender: z.preprocess((value) => ["male", "female", "neutral"].includes(String(value)) ? value : undefined, z.enum(["male", "female", "neutral"]).optional()),
     // Darstellung in der Zwischensequenz. Unbekannte Werte verwerfen statt die ganze Analyse abzulehnen.
     look: z.preprocess((value) => (VISITOR_LOOKS as readonly unknown[]).includes(value) ? value : undefined, z.enum(VISITOR_LOOKS).optional()),
     count: z.preprocess((value) => typeof value === "number" && Number.isFinite(value) ? Math.min(4, Math.max(1, Math.round(value))) : undefined, z.number().int().min(1).max(4).optional()),

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { playSoundEffect, speakCharacter, stopCurrentSpeech, stopSoundEffect } from "@/lib/audio/manager";
+import { voiceForVisitor } from "@/lib/audio/voices";
 import { getCharacter, type CharacterId, type VisitorLook } from "@/lib/simulation/characters";
 import type { ActorReaction, CharacterReaction, WorldAnalysis } from "@/lib/simulation/types";
 import { bodyFont, pixelFont } from "./fonts";
@@ -24,6 +26,7 @@ export type CutsceneVisitor = {
   key: string;
   name: string;
   role: string;
+  gender?: ActorReaction["gender"];
   stance: Stance;
   quote: string;
   /** feste Bürgerfigur oder Besucher mit Aussehen und Gruppengröße */
@@ -40,7 +43,7 @@ const MAX_AFFECTED = 2;
  */
 export function buildVisitors(analysis: Pick<WorldAnalysis, "reactions" | "characterReactions">, seed = 0): CutsceneVisitor[] {
   const affected = analysis.reactions.map((reaction, index): CutsceneVisitor => ({
-    key: `actor${index}`, name: reaction.name, role: reaction.role, stance: reaction.stance, quote: reaction.quote,
+    key: `actor${index}`, name: reaction.name, role: reaction.role, gender: reaction.gender, stance: reaction.stance, quote: reaction.quote,
     who: { look: reaction.look ?? "buerger", count: reaction.count ?? 1 },
   }));
   const visitors = affected.slice(0, MAX_AFFECTED);
@@ -145,20 +148,40 @@ export function Cutscene({ visitors: incoming, decision, caption = "Deine Entsch
   const setting = given ?? randomSetting;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const reduced = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  const visitors = incoming ?? [];
+  const [visitors, setVisitors] = useState<CutsceneVisitor[]>(incoming ?? []);
+  const incomingSignature = incoming?.map(visitor => `${visitor.key}:${visitor.quote}`).join("\u0000") ?? "";
   const afterTitle: Phase = incoming === null ? "waiting" : incoming.length ? "walk" : "final";
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>(reduced ? afterTitle : "title");
   const [arrived, setArrived] = useState(false);
   const [typed, setTyped] = useState(0);
   const current = visitors[index];
+  const spokenLine = current ? `${index}:${voiceForVisitor(current)}:${current.quote}` : "";
   const quote = current ? `„${current.quote}“` : "";
 
   useEffect(() => {
     const dialog = dialogRef.current;
     dialog?.showModal();
-    return () => dialog?.close();
+    return () => { dialog?.close(); stopCurrentSpeech(); stopSoundEffect("protest"); };
   }, []);
+
+  // Nachgeladene Bürger kommen hinzu, ohne bereits sprechende Besucher auszutauschen.
+  useEffect(() => {
+    if (!incoming) return;
+    setVisitors(previous => {
+      if (!previous.length) return incoming;
+      const known = new Set(previous.map(visitor => visitor.key));
+      const additions = incoming.filter(visitor => !known.has(visitor.key));
+      return additions.length ? [...previous, ...additions].slice(0, MAX_VISITORS) : previous;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingSignature]);
+
+  const protest = visitors.some(visitor => memberCount(visitor) > 1 && visitor.stance === "oppose");
+  useEffect(() => {
+    if (protest) playSoundEffect("protest", { loop: true });
+    return () => stopSoundEffect("protest");
+  }, [protest]);
 
   // Kurze Einblendung von Ort und Uhrzeit
   useEffect(() => {
@@ -172,14 +195,32 @@ export function Cutscene({ visitors: incoming, decision, caption = "Deine Entsch
     if (phase === "waiting" && incoming) setPhase(incoming.length ? "walk" : "final");
   }, [phase, incoming]);
 
+  useEffect(() => {
+    if (phase === "final" && index + 1 < visitors.length) {
+      setIndex(index + 1);
+      setPhase("walk");
+    }
+  }, [phase, index, visitors.length]);
+
   // Tür auf, Besuch läuft von der Tür bis vor den Schreibtisch
   useEffect(() => {
     if (phase !== "walk") return;
     setArrived(false); setTyped(0);
+    stopCurrentSpeech();
+    playSoundEffect("door-open");
+    const steps = setTimeout(() => playSoundEffect("footsteps"), reduced ? 0 : 400);
     const start = setTimeout(() => setArrived(true), reduced ? 0 : 450);
     const talk = setTimeout(() => setPhase("talk"), reduced ? 0 : 2500);
-    return () => { clearTimeout(start); clearTimeout(talk); };
+    return () => { clearTimeout(steps); clearTimeout(start); clearTimeout(talk); };
   }, [phase, index, reduced]);
+
+  // Der Besuch spricht seinen Satz mit eigener ElevenLabs-Stimme.
+  useEffect(() => {
+    if (phase !== "talk" || !current) return;
+    void speakCharacter(voiceForVisitor(current), current.quote);
+    return () => stopCurrentSpeech();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nur bei neuem Satz sprechen, nicht bei jedem Render
+  }, [phase, spokenLine]);
 
   // Schreibmaschinen-Effekt in der Dialogbox
   useEffect(() => {
