@@ -1,5 +1,5 @@
-import { Prototype } from "@/components/prototype";
+import { Cabinet } from "@/components/cabinet";
 
 export default function Home() {
-  return <Prototype />;
+  return <Cabinet />;
 }
