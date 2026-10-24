@@ -54,7 +54,3 @@ export function institutionChange(key: keyof Institutions, value: unknown): stri
   const descriptions: Record<string, string> = { provisional: "vorläufige Regierung", autocracy: "Alleinregierung", parliament: "gewähltes Parlament", direct: "direkte Abstimmungen", none: "keine", limited: "begrenzt und kontrolliert", unchecked: "unkontrolliert" };
   return `${labels[key]}: ${descriptions[String(value)] ?? String(value)}`;
 }
-
-export function InstitutionNotes({ institutions }: { institutions: Institutions }) {
-  return <PixelCard><details className="pixel-details"><summary>Verfassung</summary><ul className="pixel-list mt-3 text-sm">{Object.entries(institutions).map(([key, value]) => <li key={key}>{institutionChange(key as keyof Institutions, value)}</li>)}</ul></details></PixelCard>;
-}

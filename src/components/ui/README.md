@@ -57,7 +57,7 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 
 ## Zwischensequenz
 
-- Startet im Spiel automatisch, sobald nach „Folgen analysieren“ eine Vorschau da ist (`open-world.tsx`, `cutsceneFor`). „Überspringen“ oder Escape führt direkt zur Vorschau.
+- Startet im Spiel automatisch 10 Sekunden nach „Folgen analysieren“ (`open-world.tsx`, `CUTSCENE_DELAY`). Läuft die Analyse dann noch, zeigt das Büro „Vor der Tür warten schon Leute …“ (`visitors={null}`), bis die Besucher hereinkommen. „Überspringen“ oder Escape führt direkt zur Vorschau.
 - Die Szene verwendet einen nativen modalen Dialog: Das Dashboard bleibt währenddessen per Tastatur und Maus gesperrt. Enter auf „Überspringen“ beendet die Szene direkt.
 - `buildVisitors` nimmt zuerst bis zu drei direkt Betroffene aus `analysis.reactions` (Gemma wählt dafür `look` und `count` 1–4) und danach bis zu drei feste Figuren mit möglichst unterschiedlicher Haltung.
 - Unbekannte `look`-Werte oder doppelte Figuren aus der KI-Antwort werden aussortiert, statt die ganze Analyse abzulehnen.

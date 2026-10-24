@@ -278,6 +278,7 @@
   box-shadow: 0 var(--px-shadow) 0 var(--px-green-dark);
 }
 
+.cutscene .cut-next:disabled { cursor: wait; opacity: 0.5; }
 .cutscene .cut-next:active { transform: translateY(var(--px-shadow)); box-shadow: none; }
 .cutscene .cut-next:focus-visible, .cutscene .cut-skip:focus-visible { outline: 3px solid var(--px-yellow); outline-offset: 2px; }
 
@@ -297,6 +298,11 @@
 .cut-stance--concern { background: var(--px-yellow-light); }
 .cut-stance--oppose { background: var(--px-purple-light); }
 .cut-stance--mixed { background: var(--px-white); }
+
+/* Drei Punkte, die nacheinander aufleuchten, während die Besucher noch warten */
+.cut-dots span { animation: cut-blink 1.2s steps(1, end) infinite; }
+.cut-dots span:nth-child(2) { animation-delay: 0.4s; }
+.cut-dots span:nth-child(3) { animation-delay: 0.8s; }
 
 @keyframes cut-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes cut-title { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }

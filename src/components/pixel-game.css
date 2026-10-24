@@ -21,3 +21,93 @@
 }
 .pixel-game .font-pixel { letter-spacing: normal; }
 .pixel-game .px-bob, .pixel-game .px-sheet-in, .pixel-game .px-blink { animation: none; }
+
+/* Bürgerstimmen: immer unten am Bildschirm eingeblendet */
+.pixel-game .people-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  padding: 0 12px;
+  pointer-events: none;
+}
+.pixel-game .people-dock .people-bar {
+  max-width: 1100px;
+  margin: 0 auto;
+  border-bottom: 0;
+  box-shadow: 0 -4px 0 rgba(27, 27, 47, 0.15);
+  pointer-events: auto;
+}
+/* Angedockt flach halten: breite Leiste zeigt Figuren links und die Sprechblase rechts */
+.pixel-game .people-dock .people-bar { padding: 6px 12px 4px; }
+.pixel-game .people-dock .people-bar__bubble { margin: 6px 0 8px; padding: 6px 10px; }
+.pixel-game .people-dock .people-bar__bubble p { font-size: 0.88rem; }
+@container (min-width: 760px) {
+  .pixel-game .people-dock .people-bar__body { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); align-items: center; gap: 14px; }
+  .pixel-game .people-dock .people-bar__row { order: -1; }
+  .pixel-game .people-dock .people-bar__bubble { margin: 0; }
+  .pixel-game .people-dock .people-bar__bubble::after { left: -12px; top: calc(50% - 6px); bottom: auto; border-right: none; border-bottom: none; border-top: 2px solid var(--px-ink); border-left: 2px solid var(--px-ink); transform: rotate(-45deg) translate(4px, 4px); }
+}
+/* Platz unten frei halten, damit nichts hinter der Leiste verschwindet */
+.pixel-game .pixel-shell:has(.people-dock) { padding-bottom: 240px; }
+@media (min-width: 900px) { .pixel-game .pixel-shell:has(.people-dock) { padding-bottom: 150px; } }
+
+/* Professor Igel lugt am linken Rand hervor */
+.pixel-game .igel-tab {
+  position: fixed;
+  left: 0;
+  top: 45%;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 8px 8px 16px;
+  color: var(--px-ink);
+  background: var(--px-purple-light);
+  border: var(--px-border) solid var(--px-ink);
+  border-left: 0;
+  box-shadow: var(--px-shadow) var(--px-shadow) 0 var(--px-ink);
+  cursor: pointer;
+  transform: translateX(-12px);
+  animation: igel-peek 600ms steps(4, end) 400ms both;
+  transition: transform 150ms steps(2, end);
+}
+.pixel-game .igel-tab:hover, .pixel-game .igel-tab:focus-visible { transform: translateX(0); }
+.pixel-game .igel-tab:focus-visible { outline: 3px solid var(--px-yellow); outline-offset: 2px; }
+.pixel-game .igel-tab__label { font-size: 0.7rem; writing-mode: horizontal-tb; }
+
+/* Schublade mit dem Gespräch, fährt von links herein */
+.pixel-game .igel-drawer {
+  position: fixed;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(420px, calc(100vw - 24px));
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--px-paper);
+  border: var(--px-border) solid var(--px-ink);
+  border-left: 0;
+  box-shadow: var(--px-shadow) var(--px-shadow) 0 var(--px-ink);
+  animation: igel-drawer-in 250ms steps(5, end);
+}
+
+/* Handy: kleiner und knapp über den Bürgerstimmen, damit nichts verdeckt wird */
+@media (max-width: 640px) {
+  .pixel-game .igel-tab { top: auto; bottom: 220px; padding: 4px 6px 4px 14px; }
+  .pixel-game .igel-tab svg { width: 36px; height: 36px; }
+  .pixel-game .igel-tab__label { display: none; }
+}
+
+@keyframes igel-peek { from { transform: translateX(-100%); } to { transform: translateX(-12px); } }
+@keyframes igel-drawer-in { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-game .igel-tab, .pixel-game .igel-drawer { animation: none; transition: none; }
+}

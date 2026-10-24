@@ -21,7 +21,7 @@ export function MoodMeter({ value, label = "Zufriedenheit", className }: MoodMet
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between">
           <span className="font-pixel text-sm uppercase">{label}</span>
-          <span className="font-pixel text-xl">{v}</span>
+          <span className="px-num text-xl">{v}</span>
         </div>
         <div
           role="meter"

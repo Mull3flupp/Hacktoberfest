@@ -53,6 +53,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Zahlen gut lesbar: In der Pixel-Schrift sehen 5 und S sowie 2 und Z fast gleich aus. */
+.px-num {
+  font-family: var(--font-body), "Nunito", system-ui, sans-serif;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
 .font-body {
   font-family: var(--font-body), "Nunito", system-ui, sans-serif;
 }
