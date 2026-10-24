@@ -1,6 +1,6 @@
 /*
  * Pixel-Theme für "Wenn ich König von Deutschland wär".
- * Einbinden: in app/globals.css nach dem Tailwind-Import
+ * Einbinden: in src/app/globals.css nach dem Tailwind-Import
  *   @import "../components/ui/theme.css";
  * Alle Farben als CSS-Variablen, damit das Team sie zentral ändern kann.
  */

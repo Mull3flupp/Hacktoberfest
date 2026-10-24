@@ -1,17 +1,17 @@
 # UI-Bausteine (Pixel-Look)
 
-Alle Komponenten liegen hier und werden über `components/ui/index.ts` importiert.
+Alle Komponenten liegen hier und werden über `src/components/ui/index.ts` importiert.
 Live ansehen: `/ui-demo`.
 
 ## Einbinden (einmalig, macht A im Root-Layout)
 
 ```css
-/* app/globals.css, nach dem Tailwind-Import */
+/* src/app/globals.css, nach dem Tailwind-Import */
 @import "../components/ui/theme.css";
 ```
 
 ```tsx
-// app/layout.tsx
+// src/app/layout.tsx
 import { fontClasses } from "@/components/ui/fonts";
 <body className={fontClasses}>…</body>
 ```
