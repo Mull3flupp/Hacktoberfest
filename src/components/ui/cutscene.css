@@ -1,0 +1,304 @@
+/*
+ * Zwischensequenz (Cutscene): Büro im Kino-Look mit schwarzen Balken.
+ * Eigene Klassen statt Tailwind, damit die Szene unabhängig vom Spiel-Layout gleich aussieht.
+ */
+
+.cutscene {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  color: var(--px-ink);
+  font-family: var(--font-body), "Nunito", system-ui, sans-serif;
+  animation: cut-in 400ms steps(4, end);
+}
+
+.cutscene button {
+  font: inherit;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+/* Kinobalken oben und unten */
+.cut-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+  padding: 10px 20px;
+  color: #fff8e7;
+  background: #000;
+}
+
+.cut-bar--top { animation: cut-bar-top 500ms steps(5, end); }
+.cut-bar--bottom { justify-content: space-between; animation: cut-bar-bottom 500ms steps(5, end); }
+
+.cut-rec {
+  flex: none;
+  font-size: 0.75rem;
+  color: var(--px-red);
+  text-transform: uppercase;
+  animation: cut-blink 1.2s steps(1, end) infinite;
+}
+
+.cut-decision {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cut-decision .font-pixel { color: var(--px-yellow); }
+
+.cut-progress { font-size: 0.75rem; opacity: 0.8; }
+
+.cutscene .cut-skip {
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  color: #fff8e7;
+  background: transparent;
+  border: 2px solid #fff8e7;
+}
+
+.cutscene .cut-next {
+  min-height: 46px;
+  padding: 0 20px;
+  font-size: 1rem;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--px-green);
+  border: var(--px-border) solid #fff8e7;
+  box-shadow: 0 var(--px-shadow) 0 var(--px-green-dark);
+}
+
+.cutscene .cut-next:active { transform: translateY(var(--px-shadow)); box-shadow: none; }
+.cutscene .cut-next:focus-visible, .cutscene .cut-skip:focus-visible { outline: 3px solid var(--px-yellow); outline-offset: 2px; }
+
+/* Bühne: das Büro */
+.cut-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cut-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Tür links, geht auf, wenn jemand hereinkommt */
+.cut-door {
+  position: absolute;
+  left: 4%;
+  bottom: 24%;
+  width: 13%;
+  height: 52%;
+  background: #2a1a10;
+  border: 6px solid #6b4f2e;
+  border-bottom: none;
+}
+
+.cut-door span {
+  position: absolute;
+  inset: 0;
+  background: #8a5a2b;
+  transform-origin: left center;
+  transition: transform 300ms steps(3, end);
+}
+
+.cut-door span::after {
+  content: "";
+  position: absolute;
+  right: 12%;
+  top: 50%;
+  width: 10%;
+  height: 4%;
+  background: var(--px-yellow);
+}
+
+.cut-door.is-open span { transform: scaleX(0.15); }
+
+/* Wer gesprochen hat, steht hinten rechts */
+.cut-waiting {
+  position: absolute;
+  right: 3%;
+  bottom: 19%;
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: flex-end;
+  gap: 2px 6px;
+  max-width: 34%;
+}
+
+/* Im Fazit stehen alle nebeneinander vor der Karte */
+.cut-waiting--final {
+  right: 50%;
+  bottom: 12%;
+  max-width: 94%;
+  flex-wrap: nowrap;
+  justify-content: center;
+  transform: translateX(50%);
+}
+
+.cut-waiting__person {
+  position: relative;
+  animation: cut-step-in 300ms steps(3, end);
+}
+
+.cut-badge {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  z-index: 1;
+  min-width: 20px;
+  padding: 0 3px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  line-height: 18px;
+  text-align: center;
+  border: 2px solid var(--px-ink);
+}
+
+/* Die sprechende Person: läuft von der Tür in die Mitte */
+.cut-speaker {
+  position: absolute;
+  left: 9%;
+  bottom: 14%;
+  transform: translateX(-50%);
+  transition: left 1.4s steps(14, end);
+}
+
+.cut-speaker.has-arrived { left: 40%; }
+
+.cut-group { display: inline-flex; align-items: flex-end; }
+.cut-group > * + * { margin-left: -14px; }
+
+.cut-speaker.is-walking .px-sprite { animation: cut-walk 0.3s steps(1, end) infinite; }
+.cut-speaker--support .px-sprite { animation: cut-hop 0.9s steps(1, end) infinite; }
+.cut-speaker--oppose .px-sprite { animation: cut-shake 0.6s steps(1, end) infinite; }
+.cut-speaker--concern .px-sprite, .cut-speaker--mixed .px-sprite { animation: cut-tilt 1.4s steps(1, end) infinite; }
+.cut-group > :nth-child(2) { animation-delay: 0.15s !important; }
+.cut-group > :nth-child(3) { animation-delay: 0.3s !important; }
+.cut-group > :nth-child(4) { animation-delay: 0.45s !important; }
+
+/* Sprechblase */
+/* Sprechblase hat einen festen Platz über der Raummitte */
+.cut-bubble {
+  position: absolute;
+  left: calc(40% - 64px);
+  bottom: calc(14% + 150px);
+  z-index: 2;
+  width: min(460px, 56%);
+  padding: 10px 14px;
+  background: var(--px-white);
+  border: var(--px-border) solid var(--px-ink);
+  box-shadow: 0 var(--px-shadow) 0 rgba(27, 27, 47, 0.35);
+  animation: cut-pop 200ms steps(3, end);
+}
+
+.cut-bubble::after {
+  content: "";
+  position: absolute;
+  left: 36px;
+  bottom: -12px;
+  width: 14px;
+  height: 14px;
+  background: var(--px-white);
+  border-right: var(--px-border) solid var(--px-ink);
+  border-bottom: var(--px-border) solid var(--px-ink);
+  transform: rotate(45deg) translate(-4px, -4px);
+}
+
+.cut-bubble strong {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+}
+
+.cut-bubble small { font-size: 0.75rem; font-weight: normal; opacity: 0.75; }
+
+.cut-bubble p {
+  min-height: 2.8em;
+  margin: 6px 0 0;
+  font-size: 1.1rem;
+  line-height: 1.4;
+}
+
+.cut-caret {
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.1em;
+  background: var(--px-ink);
+  animation: cut-blink 0.8s steps(1, end) infinite;
+}
+
+/* Haltung: bewusst neutrale Farben */
+.cut-stance { padding: 0 6px; font-size: 0.75rem; border: 2px solid var(--px-ink); }
+.cut-stance--support { background: var(--px-blue-light); }
+.cut-stance--concern { background: var(--px-yellow-light); }
+.cut-stance--oppose { background: var(--px-purple-light); }
+.cut-stance--mixed { background: var(--px-white); }
+
+/* Fazit-Karte */
+.cut-final {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(560px, calc(100% - 32px));
+  padding: 20px 22px;
+  background: var(--px-paper);
+  border: var(--px-border) solid var(--px-ink);
+  box-shadow: 0 var(--px-shadow) 0 var(--px-ink);
+  transform: translate(-50%, -60%);
+  animation: cut-pop 300ms steps(3, end);
+}
+
+.cut-final__eyebrow { margin: 0; font-size: 0.8rem; text-transform: uppercase; color: var(--px-purple); }
+.cut-final h2 { margin: 4px 0 10px; font-size: clamp(1.5rem, 4vw, 2.2rem); line-height: 1.1; }
+.cut-final p { margin: 0 0 10px; line-height: 1.5; }
+.cut-final__tally { display: flex; flex-wrap: wrap; gap: 6px; }
+
+@keyframes cut-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cut-bar-top { from { transform: translateY(-100%); } to { transform: none; } }
+@keyframes cut-bar-bottom { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes cut-blink { 50% { opacity: 0.25; } }
+@keyframes cut-walk { 50% { transform: translateY(-6%); } }
+@keyframes cut-hop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10%); } }
+@keyframes cut-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5%); } 75% { transform: translateX(5%); } }
+@keyframes cut-tilt { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-5deg); } }
+@keyframes cut-pop { from { transform: scale(0.9); opacity: 0.4; } to { transform: scale(1); opacity: 1; } }
+.cut-final { animation-name: cut-final-pop; }
+@keyframes cut-final-pop { from { transform: translate(-50%, -55%) scale(0.9); opacity: 0.4; } to { transform: translate(-50%, -60%); opacity: 1; } }
+@keyframes cut-step-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+@media (max-width: 700px) {
+  .cut-bar { min-height: 52px; padding: 8px 10px; gap: 10px; }
+  .cut-rec { display: none; }
+  .cut-decision { font-size: 0.8rem; }
+  .cut-door { width: 18%; left: 2%; }
+  .cut-speaker.has-arrived { left: 50%; }
+  .cut-speaker .px-sprite { width: 80px; height: 80px; }
+  .cut-bubble { left: 4%; right: 4%; width: auto; bottom: calc(14% + 104px); }
+  .cut-bubble::after { left: calc(50% - 7px); }
+  .cut-bubble p { font-size: 1rem; }
+  .cut-waiting { max-width: 46%; bottom: 20%; }
+  .cut-waiting .px-sprite { width: 40px; height: 40px; }
+  .cutscene .cut-next { padding: 0 12px; font-size: 0.85rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cutscene, .cut-bar--top, .cut-bar--bottom, .cut-rec, .cut-caret, .cut-bubble, .cut-final, .cut-waiting__person,
+  .cut-speaker .px-sprite { animation: none !important; }
+  .cut-speaker, .cut-door span { transition: none; }
+}

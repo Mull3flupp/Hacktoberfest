@@ -139,10 +139,20 @@ test("the six fixed characters may react once each; older analyses without react
   ] as const;
   assert.deepEqual(validateAnalysis(analysis({ characterReactions: [...reactions] })).characterReactions, reactions);
   assert.equal(validateAnalysis(analysis()).characterReactions, undefined);
-  assert.throws(() => validateAnalysis(analysis({ characterReactions: [reactions[0], { ...reactions[0], quote: "Noch einmal." }] })));
-  assert.throws(() => validateAnalysis(analysis({ characterReactions: [{ characterId: "unknown" as never, stance: "support", quote: "Wer bin ich?" }] })));
+  // Modellfehler bei einzelnen Figuren verwerfen nur diese Figur, nicht die ganze Analyse.
+  assert.deepEqual(validateAnalysis(analysis({ characterReactions: [reactions[0], { ...reactions[0], quote: "Noch einmal." }] })).characterReactions, [reactions[0]]);
+  assert.deepEqual(validateAnalysis(analysis({ characterReactions: [{ characterId: "unknown" as never, stance: "support", quote: "Wer bin ich?" }, reactions[1]] })).characterReactions, [reactions[1]]);
   const initial = world();
   const committed = applyWorldProposal(initial, proposal(initial, analysis({ characterReactions: [...reactions] })));
   assert.deepEqual(committed.state.lastAnalysis?.characterReactions, reactions);
   assert.doesNotThrow(() => validateWorld(committed.state));
+});
+
+test("visitors carry an optional look and group size for the cutscene; odd model values are tolerated", () => {
+  const visitor = { name: "Imbiss am Markt", role: "Imbissbetreiber", stance: "oppose", quote: "Zwei Euro? Das ist viel zu günstig!" } as const;
+  const parsed = validateAnalysis(analysis({ reactions: [{ ...visitor, look: "imbiss", count: 1 }, { ...visitor, look: "raumschiff" as never, count: 9 }] })).reactions;
+  assert.equal(parsed[0].look, "imbiss");
+  assert.equal(parsed[1].look, undefined);
+  assert.equal(parsed[1].count, 4);
+  assert.equal(validateAnalysis(analysis()).reactions[0].look, undefined);
 });

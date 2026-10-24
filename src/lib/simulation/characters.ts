@@ -57,3 +57,10 @@ export const characters: Character[] = [
 export function getCharacter(id: string): Character | undefined {
   return characters.find((character) => character.id === id);
 }
+
+/**
+ * Erscheinungsbilder für situationsbezogene Besucher in der Zwischensequenz,
+ * z. B. ein Imbissbetreiber beim Dönerpreis oder eine Gruppe Studierender.
+ */
+export const VISITOR_LOOKS = ["imbiss", "studierende", "handwerk", "business", "senioren", "familie", "verwaltung", "buerger"] as const;
+export type VisitorLook = (typeof VISITOR_LOOKS)[number];

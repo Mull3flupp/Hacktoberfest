@@ -10,6 +10,7 @@ import type { ConceptId, LearningProgress } from "@/lib/game/types";
 import { validateWorld, worldProposalSchema } from "@/lib/simulation/state";
 import type { SignedWorld, SignedWorldProposal, WorldCommit, WorldState } from "@/lib/simulation/types";
 import { LearningPanel } from "./learning-panel";
+import { Cutscene, buildVisitors } from "./ui/Cutscene";
 import { PeopleBar } from "./ui/PeopleBar";
 import { VoicePanel, type VoiceBridge } from "./voice-panel";
 import { CitizenVillage, FeedbackSheet, Gruender, MoodMeter, PixelButton, PixelCard, ProfessorIgel, ProgressBar, RichterFrosch, SceneCard, cn } from "./ui";
@@ -70,6 +71,8 @@ export function OpenWorld() {
   const [screen, setScreen] = useState<Screen>("setup");
   const [draft, setDraft] = useState("");
   const [proposal, setProposal] = useState<SignedWorldProposal | null>(null);
+  // Id der Vorschau, deren Zwischensequenz gerade läuft
+  const [cutsceneFor, setCutsceneFor] = useState<string | null>(null);
   const proposalRef = useRef<SignedWorldProposal | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
   const busyRef = useRef(false);
@@ -165,6 +168,7 @@ export function OpenWorld() {
       if (!worldProposalSchema.safeParse(next.proposal).success) throw new Error("Die Analyse ist nicht vollständig oder enthält unlesbare Folgen. Bitte erneut anfordern; es wurde nichts beschlossen.");
       if (next.proposal.worldId !== current.state.id || next.proposal.baseRevision !== current.state.revision) throw new Error("Diese Analyse gehört nicht zu deinem aktuellen Spielstand. Bitte erneut anfordern.");
       setNow(Date.now()); updateProposal(next); setScreen("desk");
+      if (buildVisitors(next.proposal.analysis).length) setCutsceneFor(next.proposal.id);
     } catch (cause) { if (epoch.current === requestEpoch) setError(cause instanceof Error ? cause.message : "Die Modellanalyse ist fehlgeschlagen. Es wurde nichts beschlossen."); }
     finally { busyRef.current = false; setBusy(null); }
   }
@@ -304,6 +308,7 @@ export function OpenWorld() {
         </PixelCard>
       </div>
       <PeopleBar reactions={proposal?.proposal.analysis.characterReactions ?? state.lastAnalysis?.characterReactions} caption={proposal ? "Reaktionen auf deine Vorschau" : state.lastAnalysis?.characterReactions?.length ? `Reaktionen auf: ${state.lastAnalysis.title}` : undefined} />
+      {proposal && cutsceneFor === proposal.proposal.id && <Cutscene visitors={buildVisitors(proposal.proposal.analysis)} decision={proposal.proposal.kind === "advance" ? "Ein Quartal vergeht" : proposal.proposal.decision} caption={proposal.proposal.kind === "advance" ? "Die Zeit läuft" : "Deine Entscheidung"} onDone={() => setCutsceneFor(null)} />}
     </>}
 
     {screen === "balance" && state && <section className="space-y-6"><SpeakerNote>Du wolltest: „{state.setup.vision || "dein Land nach deinen Vorstellungen gestalten"}“ Wie weit bist du gekommen?</SpeakerNote><h2 className="font-pixel text-3xl">Was bleibt von deinem Kurs?</h2><PromiseTracks rows={promises} /><PixelCard tone="blue" className="space-y-5"><div className="flex items-center gap-3"><RichterFrosch bob={false} size={64} /><div><p className="font-pixel text-sm uppercase">Der Nachfolgetest</p><h3 className="font-pixel text-2xl">Und wenn jemand anderes regiert?</h3></div></div><p>Eine Person mit ganz anderen Zielen übernimmt dieselben Befugnisse. Welche deiner Regeln würden sie begrenzen?</p>

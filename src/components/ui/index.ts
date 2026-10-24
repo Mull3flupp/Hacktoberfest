@@ -23,3 +23,5 @@ export {
 export { PersonSprite } from "./people";
 export { PeopleBar, type PeopleBarProps } from "./PeopleBar";
 export { IntroSlides, type IntroSlidesProps } from "./IntroSlides";
+export { VisitorSprite } from "./visitors";
+export { Cutscene, buildVisitors, type CutsceneProps, type CutsceneVisitor } from "./Cutscene";

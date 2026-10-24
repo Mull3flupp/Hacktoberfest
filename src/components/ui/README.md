@@ -44,12 +44,21 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 | `PersonSprite` | Die sieben festen Bürgerfiguren (Finn, Oma Gisela, Bauer Heinz, Lea, Mika, Karen, Konsti) |
 | `PeopleBar` | Leiste unten im Spiel: die Bürgerfiguren mit Sprechblase und Haltung (+ dafür, − dagegen, ? Bedenken, ~ zwiespältig) |
 | `IntroSlides` | Durchklickbare Intro-Show mit animierten Pixel-Szenen, endet mit „Du wurdest gewählt!“ |
+| `Cutscene`, `buildVisitors` | Zwischensequenz im Büro: Betroffene und feste Figuren kommen nacheinander herein und sagen ihre Meinung |
+| `VisitorSprite` | Besucherfiguren für die Zwischensequenz: `imbiss`, `studierende`, `handwerk`, `business`, `senioren`, `familie`, `verwaltung`, `buerger` |
 
 ## Intro und Bürgerfiguren
 
 - **Intro:** `src/components/intro-gate.tsx` zeigt `IntroSlides` auf der Startseite einmal pro Browser-Tab. Mit `/?intro` läuft es erneut. Die Szenen sind in `introScenes.tsx` aus Rechtecken gezeichnet, ohne Bilddateien.
 - **Figuren:** Namen, Rollen und Charakterbeschreibungen stehen in `src/lib/simulation/characters.ts`. Gemma bekommt die Beschreibungen mit und schreibt zu jeder Analyse pro Figur einen Satz plus Haltung (`characterReactions`). Ältere Spielstände ohne diese Reaktionen bleiben gültig; die Leiste zeigt dann die Leerlauf-Sprüche.
 - PeopleBar und IntroSlides bringen ihre eigenen CSS-Dateien (`people.css`, `intro.css`) mit und funktionieren deshalb auch außerhalb von `.px-root`.
+
+## Zwischensequenz
+
+- Startet im Spiel automatisch, sobald nach „Folgen analysieren“ eine Vorschau da ist (`open-world.tsx`, `cutsceneFor`). „Überspringen“ oder Escape führt direkt zur Vorschau.
+- `buildVisitors` nimmt zuerst bis zu drei direkt Betroffene aus `analysis.reactions` (Gemma wählt dafür `look` und `count` 1–4) und danach bis zu drei feste Figuren mit möglichst unterschiedlicher Haltung.
+- Unbekannte `look`-Werte oder doppelte Figuren aus der KI-Antwort werden aussortiert, statt die ganze Analyse abzulehnen.
+- In `/ui-demo` lässt sich die Szene mit Beispielsätzen zum Dönerpreis abspielen.
 
 ## Neutralität
 

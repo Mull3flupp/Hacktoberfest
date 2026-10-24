@@ -10,6 +10,9 @@ import {
   Gruender,
   InstitutionBadge,
   IntroSlides,
+  Cutscene,
+  buildVisitors,
+  VisitorSprite,
   PeopleBar,
   PersonSprite,
   MicButton,
@@ -87,6 +90,22 @@ const SAMPLE_REACTIONS: CharacterReaction[] = [
   { characterId: "startup", stance: "oppose", quote: "Deckel? Lieber ein Proptech-Startup, das Wohnraum skaliert!" },
 ];
 
+const SAMPLE_VISITORS = buildVisitors({
+  reactions: [
+    { name: "Imbiss am Markt", role: "Imbissbetreiber", look: "imbiss", count: 1, stance: "oppose", quote: "Zwei Euro? Das ist viel zu günstig! Davon kann ich weder Fleisch noch Miete zahlen." },
+    { name: "WG aus der Unistraße", role: "Studierende", look: "studierende", count: 4, stance: "support", quote: "Endlich ein Mittagessen, das wir uns leisten können!" },
+    { name: "Ordnungsamt", role: "Verwaltung", look: "verwaltung", count: 1, stance: "concern", quote: "Und wer kontrolliert die Preise an allen 400 Buden?" },
+  ],
+  characterReactions: [
+    { characterId: "finance-bro", stance: "oppose", quote: "Preisdeckel? Der Markt regelt das, Bro. Immer." },
+    { characterId: "berlin", stance: "support", quote: "Essen ist ein Grundrecht! Als Nächstes die Club-Mate." },
+    { characterId: "oma", stance: "concern", quote: "Döner? Früher gab es Frikadellen. Aber zwei Euro, das ist ja geschenkt." },
+    { characterId: "startup", stance: "mixed", quote: "Klingt nach einer Chance für eine Döner-Delivery-App." },
+  ],
+});
+
+const VISITOR_LOOK_LIST = ["imbiss", "studierende", "handwerk", "business", "senioren", "familie", "verwaltung", "buerger"] as const;
+
 /* ---------- kleine Hilfen für die Demo ---------- */
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -110,6 +129,7 @@ export default function UiDemoPage() {
   const [mic, setMic] = useState<MicState>("idle");
   const [mood, setMood] = useState(55);
   const [introOpen, setIntroOpen] = useState(false);
+  const [cutsceneOpen, setCutsceneOpen] = useState(false);
   const [reacting, setReacting] = useState(true);
 
   // Szenen-Flow
@@ -361,6 +381,19 @@ export default function UiDemoPage() {
         </div>
       </Section>
 
+      <Section title="Zwischensequenz">
+        <p className="text-sm">
+          Startet im Spiel automatisch nach „Folgen analysieren“: Betroffene und feste Figuren kommen ins Büro und sagen
+          ihre Meinung. Hier mit Beispielsätzen zum Dönerpreis.
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          {VISITOR_LOOK_LIST.map((look) => <VisitorSprite key={look} look={look} size={48} label={look} />)}
+        </div>
+        <div>
+          <PixelButton variant="info" onClick={() => setCutsceneOpen(true)}>Zwischensequenz abspielen</PixelButton>
+        </div>
+      </Section>
+
       <Section title="Bürgerfiguren">
         <div className="flex flex-wrap gap-4">
           {characters.map((character) => (
@@ -383,6 +416,7 @@ export default function UiDemoPage() {
 
       <PeopleBar reactions={reacting ? SAMPLE_REACTIONS : []} caption={reacting ? "Reaktionen auf: Mietendeckel (Beispiel)" : undefined} />
       {introOpen && <IntroSlides onDone={() => setIntroOpen(false)} />}
+      {cutsceneOpen && <Cutscene visitors={SAMPLE_VISITORS} decision="Ich will den Dönerpreis auf 2 € begrenzen." onDone={() => setCutsceneOpen(false)} />}
 
       <FeedbackSheet
         open={sheet !== null}
