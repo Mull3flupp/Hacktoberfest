@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { concepts, getConcept } from "@/lib/game/engine";
 import { dueCards, rememberConcept, reviewConcept } from "@/lib/game/learning";
 import type { ConceptId, LearningProgress } from "@/lib/game/types";
+import { ConceptCard, FeedbackSheet, PixelButton, PixelCard, ProfessorIgel, SceneCard } from "./ui";
 
 interface TutorAnswer {
   answer: string;
@@ -18,13 +19,15 @@ export interface LearningPanelProps {
   onClose: () => void;
   onAskTutor?: (question: string, conceptId?: ConceptId) => Promise<TutorAnswer>;
   initialConceptId?: ConceptId;
+  pixel?: boolean;
 }
 
-export function LearningPanel({ progress, revision, onChange, onClose, onAskTutor, initialConceptId }: LearningPanelProps) {
+export function LearningPanel({ progress, revision, onChange, onClose, onAskTutor, initialConceptId, pixel }: LearningPanelProps) {
   const [selectedId, setSelectedId] = useState<ConceptId>(initialConceptId ?? "social-contract");
   const [mode, setMode] = useState<"explore" | "quiz">("explore");
   const [questionKind, setQuestionKind] = useState<"understanding" | "transfer">("understanding");
   const [answerIndex, setAnswerIndex] = useState<number | null>(null);
+  const [choiceId, setChoiceId] = useState<string | null>(null);
   const [tutorAnswer, setTutorAnswer] = useState<TutorAnswer | null>(null);
   const [tutorError, setTutorError] = useState("");
   const [tutorBusy, setTutorBusy] = useState(false);
@@ -45,7 +48,7 @@ export function LearningPanel({ progress, revision, onChange, onClose, onAskTuto
   useEffect(() => {
     if (!initialConceptId || !getConcept(initialConceptId)) return;
     epoch.current += 1;
-    setSelectedId(initialConceptId); setMode("explore"); setAnswerIndex(null);
+    setSelectedId(initialConceptId); setMode("explore"); setAnswerIndex(null); setChoiceId(null);
     setTutorAnswer(null); setTutorError(""); setTutorBusy(false);
     tutorPending.current = false; answered.current = false;
   }, [initialConceptId]);
@@ -61,7 +64,7 @@ export function LearningPanel({ progress, revision, onChange, onClose, onAskTuto
     setSelectedId(id); setMode(quiz ? "quiz" : "explore");
     const previous = progressRef.current.find(item => item.conceptId === id);
     setQuestionKind((previous?.attempts ?? 0) % 2 ? "transfer" : "understanding");
-    setAnswerIndex(null); setTutorAnswer(null); setTutorError(""); setTutorBusy(false);
+    setAnswerIndex(null); setChoiceId(null); setTutorAnswer(null); setTutorError(""); setTutorBusy(false);
     tutorPending.current = false; answered.current = false;
     if (quiz && !previous) onChange(rememberConcept(progressRef.current, id, revision));
   }
@@ -114,6 +117,20 @@ export function LearningPanel({ progress, revision, onChange, onClose, onAskTuto
     if (item.lastCorrect === false) return "Nach dem nächsten Beschluss oder in Kürze wieder fällig";
     return `Wiederholung ab ${new Date(item.nextReviewAt).toLocaleDateString("de-DE")}`;
   }
+
+  if (pixel) return <section className="space-y-6 py-3" aria-labelledby="learning-title">
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-pixel text-sm uppercase">Notizen aus deinem Regierungsalltag</p><h2 id="learning-title" className="font-pixel text-3xl">Macht verstehen</h2></div><PixelButton size="sm" variant="secondary" onClick={onClose}>Zurück zum Spiel →</PixelButton></div>
+    <p className="text-sm leading-relaxed">Was in deinem Land passiert, hat einen Namen. Entdecke die Begriffe hinter deinen Entscheidungen.</p>
+    {due.length > 0 && <PixelCard tone="yellow"><div className="flex flex-wrap items-center justify-between gap-4"><div><h3 className="font-pixel text-xl">{due.length === 1 ? "Eine Lernkarte ist wieder dran." : `${due.length} Lernkarten sind wieder dran.`}</h3><p className="text-sm">Ein kurzer Gedächtnischeck, dann geht es zurück ans Regieren.</p></div><PixelButton size="sm" onClick={() => open(due[0].conceptId, true)}>Jetzt wiederholen</PixelButton></div></PixelCard>}
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Begriff auswählen">{concepts.map(card => <PixelButton size="sm" variant={card.id === selected.id ? "tutor" : "secondary"} aria-pressed={card.id === selected.id} key={card.id} onClick={() => open(card.id)}>{card.title}{progress.some(item => item.conceptId === card.id) ? " ✓" : ""}</PixelButton>)}</div>
+    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="min-w-0 space-y-5">{mode === "explore" ? <><ConceptCard term={selected.title} definition={selected.explanation} example={contextualHooks[selected.id]} source={selected.sources.map(source => source.title).join(" · ")} saved={!!saved} onSave={remember} onExplain={onAskTutor ? () => void explainAnswer() : undefined} /><PixelButton variant="tutor" disabled={tutorBusy} onClick={() => open(selected.id, true)}>{saved ? "Verständnis prüfen" : "Merken & kurz prüfen"}</PixelButton></> : <PixelCard><SceneCard eyebrow={questionKind === "understanding" ? "Verständnischeck" : "Auf einen neuen Fall übertragen"} title={question.question} situation={`Was passt zu „${selected.title}“? Hier geht es um Fachwissen, nicht um deine politische Meinung.`} speaker={<ProfessorIgel bob={false} size={64} />} speakerName="Professor Igel" options={question.options.map((option, index) => ({ id: String(index), label: option }))} selectedId={choiceId} onSelect={setChoiceId} onConfirm={() => { if (choiceId !== null) answer(Number(choiceId)); }} confirmLabel="Antwort prüfen" locked={answerIndex !== null} /></PixelCard>}
+        <div aria-live="polite">{tutorBusy && <PixelCard tone="purple" role="status">Professor Igel denkt über deinen Spielweg nach …</PixelCard>}{tutorError && <PixelCard tone="red" role="alert">{tutorError}</PixelCard>}{tutorAnswer && <PixelCard tone="purple" title="Professor Igel erklärt"><p className="whitespace-pre-wrap text-sm leading-relaxed">{tutorAnswer.answer}</p></PixelCard>}</div>
+      </div>
+      <PixelCard title="Deine Lernnotiz" className="space-y-4"><p className="text-sm">{saved ? nextReviewLabel(saved) : "Wenn du dir den Begriff merkst, taucht er später wieder auf."}</p><details className="pixel-details"><summary>Quellen & Grenzen</summary><p className="mt-3 text-sm leading-relaxed">{selected.limitation}</p><ul className="pixel-list mt-3 text-sm">{selected.sources.map(source => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a></li>)}</ul></details><p className="text-xs leading-relaxed">Richtige Antworten kommen nach einem, drei und sieben Tagen wieder. Falsche Antworten nach dem nächsten Beschluss oder in Kürze.</p></PixelCard>
+    </div>
+    <FeedbackSheet open={mode === "quiz" && answerIndex !== null} tone={correct ? "correct" : "wrong"} title={correct ? "Genau richtig!" : "Nicht ganz. Schau noch einmal hin."} actionLabel={due.some(item => item.conceptId !== selected.id) ? "Nächste Lernkarte" : "Zurück zur Notiz"} onAction={() => { const next = due.find(item => item.conceptId !== selected.id); open(next?.conceptId ?? selected.id, !!next); }}><p>{question.explanation}</p>{!correct && <p className="mt-2"><b>Richtige Antwort:</b> {question.options[question.correctIndex]}</p>}</FeedbackSheet>
+  </section>;
 
   return <section aria-labelledby="learning-title">
     <div className="row space-between">

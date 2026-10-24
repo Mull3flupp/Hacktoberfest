@@ -33,9 +33,15 @@ npm run dev
 
 Für einen Produktionslauf: `npm run build`, danach `npm start`.
 
-## Pixel-UI ansehen
+## Pixel-UI im Spiel
 
-Die neue [UI-Demo](http://localhost:3000/ui-demo/) zeigt die Pixel-Figuren, Buttons, Kennzahlen, Lernkarten und interaktiven Beispiel-Szenen aus PR #1. Sie verwendet Beispieldaten; das spielbare Gemma-Spiel liegt weiterhin auf der [Startseite](http://localhost:3000/). Die Komponenten und ihre Verwendung sind in [src/components/ui/README.md](src/components/ui/README.md) dokumentiert.
+Die [Startseite](http://localhost:3000/) verwendet die Pixel-Komponenten aus PR #1 direkt im spielbaren Ablauf: Gründung, freie Entscheidung, Folgenvorschau, Bürgerdorf, Kennzahlen, Institutionen, Nachrichten, Chronik, Zwischenbilanz und Lernkarten. Figuren und Anzeigen reagieren auf den echten bestätigten Weltzustand. Die Vorschau übernimmt Modellfolgen erst nach deiner Bestätigung; politische Entscheidungen bekommen eine neutrale Folgenrückmeldung. Richtig/falsch erscheint nur bei Wissensfragen.
+
+Die [UI-Demo](http://localhost:3000/ui-demo/) bleibt als Komponentenübersicht mit Beispieldaten erreichbar. Theme und Schriften werden im jeweiligen Seiteneinstieg geladen; [pixel-game.css](src/components/pixel-game.css) ergänzt die Spielansicht, [world-panels.tsx](src/components/world-panels.tsx) verbindet die Library mit Weltzustand und Modellausgabe. Die Komponenten sind in [src/components/ui/README.md](src/components/ui/README.md) dokumentiert.
+
+Die Auswahlkarten nutzen native Radiofelder samt Pfeiltastensteuerung. Vor dem Ersetzen eines bestehenden Landes schützt ein Bestätigungsdialog; gespeichert wird weiterhin unter demselben LocalStorage-Schlüssel. Der Pixel-Mikrofonknopf verwendet die tatsächliche optionale ElevenLabs-Verbindung.
+
+Pixelify Sans und Nunito sind samt Lizenzen [lokal enthalten](src/components/ui/assets/fonts/README.md); der Build benötigt keinen externen Schriftendownload.
 
 ## Spielablauf
 

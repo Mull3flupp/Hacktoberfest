@@ -5,7 +5,7 @@ Live ansehen: `/ui-demo`.
 
 ## Einbinden
 
-Die Demo lädt Theme und Schriften in `src/app/ui-demo/layout.tsx`. Für weitere Oberflächen beide dort im jeweiligen Layout einbinden und den Inhalt mit `fontClasses` umschließen:
+Das Spiel lädt Theme und Schriften in `src/app/page.tsx`, die Demo in `src/app/ui-demo/layout.tsx`. Für weitere Oberflächen beide dort im jeweiligen Seiteneinstieg oder Layout einbinden und den Inhalt mit `fontClasses` umschließen:
 
 ```tsx
 import { fontClasses } from "@/components/ui/fonts";
@@ -15,6 +15,16 @@ import "@/components/ui/theme.css";
 ```
 
 Die alten Grundstile in `globals.css` liegen in `@layer base`, damit Tailwind-Utilities die Pixel-Komponenten gestalten können. Das Theme setzt eckige Buttons und Listenabstände nur innerhalb von `.px-root`.
+
+## Verwendung im echten Spiel
+
+`OpenWorld` verwendet die Komponenten für den geführten Einstieg und die offene Regierungssimulation. `world-panels.tsx` stellt Kennzahlen, modellgenerierte Folgen, Akteursreaktionen und Institutionen dar. `LearningPanel` und `VoicePanel` aktivieren ihre Pixel-Ansicht über `pixel` und behalten ihre bestehenden Daten- und API-Verträge.
+
+`SceneCard` verwendet echte Radiofelder mit gemeinsamer Gruppe und Pfeiltastensteuerung. `ProgressBar` kann auch anteilige Segmente für Versprechen darstellen. `InstitutionBadge` kennt zusätzlich `nicht gesichert`, damit fehlende Sicherungen nicht als ausgesetzte Institutionen behauptet werden. `cn` kombiniert Klassen mit `clsx` und `tailwind-merge`, sodass individuelle Größen und Varianten zuverlässig überschrieben werden können.
+
+Im Spiel laufen die Figuren ohne dauerhafte Animation. Der Mikrofonknopf zeigt den realen Gesprächszustand; eine fehlende Sprachkonfiguration wird als nicht eingerichtet angezeigt.
+
+Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/README.md) und werden über `next/font/local` geladen. Beim Build ist kein Google-Fonts-Zugriff nötig.
 
 ## Bausteine
 

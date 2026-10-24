@@ -3,6 +3,7 @@
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { useEffect, useRef, useState } from "react";
 import { postJson } from "@/lib/storage";
+import { MicButton } from "./ui";
 
 export interface VoiceBridge {
   getContext: () => unknown;
@@ -11,13 +12,13 @@ export interface VoiceBridge {
   rememberConcept: (conceptId: string) => string;
 }
 
-interface Props { bridge: VoiceBridge; contextVersion: string; configured: boolean; onTranscript: (source: string, text: string) => void }
+interface Props { bridge: VoiceBridge; contextVersion: string; configured: boolean; onTranscript: (source: string, text: string) => void; pixel?: boolean }
 
 export function VoicePanel(props: Props) {
   return <ConversationProvider><VoiceControls {...props} /></ConversationProvider>;
 }
 
-function VoiceControls({ bridge, contextVersion, configured, onTranscript }: Props) {
+function VoiceControls({ bridge, contextVersion, configured, onTranscript, pixel }: Props) {
   const current = useRef(bridge);
   current.current = bridge;
   const [error, setError] = useState("");
@@ -52,6 +53,9 @@ function VoiceControls({ bridge, contextVersion, configured, onTranscript }: Pro
       setError(cause instanceof Error ? cause.message : "Das Mikrofon konnte nicht gestartet werden.");
     } finally { startingRef.current = false; setStarting(false); }
   }
+
+  const toggle = () => { if (status === "connected") void conversation.endSession(); else void start(); };
+  if (pixel) return <div className="border-t-2 border-[var(--px-purple)] pt-4"><div className="flex items-center gap-4"><MicButton state={!configured ? "unavailable" : starting || status === "connecting" ? "processing" : status === "connected" ? "recording" : "idle"} label={status === "connected" ? "Sprachgespräch beenden" : starting || status === "connecting" ? "Verbinde …" : !configured ? "Mikrofon nicht eingerichtet" : "Sprachgespräch starten"} onClick={toggle} /><p className="flex-1 text-xs leading-relaxed">{!configured ? "Der Texttutor ist bereit. Für Sprache fehlt noch die ElevenLabs-Einrichtung." : status === "connected" ? "Mikrofon aktiv · ElevenLabs verbunden" : "Optional: Sprich mit deinem Kabinett."}</p></div>{error && <p className="mt-3 border-2 border-[var(--px-red-dark)] bg-[var(--px-red-light)] p-3 text-sm" role="alert">{error}</p>}</div>;
 
   return <div className="card-footer">
     <div className="row">

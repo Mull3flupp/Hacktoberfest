@@ -1,0 +1,23 @@
+/* Scoped game defaults; the component library supplies the visual building blocks. */
+@layer base {
+.pixel-game { color: var(--px-ink); background: var(--px-paper); }
+.pixel-game .pixel-shell { max-width: 1240px; margin: 0 auto; padding: 24px 24px 48px; }
+.pixel-game p, .pixel-game h1, .pixel-game h2, .pixel-game h3, .pixel-game h4 { margin-block: 0; }
+.pixel-game h1, .pixel-game h2, .pixel-game h3, .pixel-game h4 { text-wrap: balance; }
+.pixel-game p { text-wrap: pretty; }
+.pixel-game input:not([type="radio"]), .pixel-game textarea { border: var(--px-border) solid var(--px-ink); border-radius: 0; background: var(--px-white); color: var(--px-ink); padding: 12px; font: inherit; }
+.pixel-game textarea { resize: vertical; line-height: 1.6; }
+.pixel-game input:focus-visible, .pixel-game textarea:focus-visible { outline: 3px solid var(--px-blue); outline-offset: 3px; }
+.pixel-game label { margin-bottom: 8px; }
+.pixel-game fieldset { min-width: 0; border: 0; padding: 0; margin: 0; }
+.pixel-game .pixel-list { padding-left: 18px; list-style: square; }
+.pixel-game .pixel-list li + li { margin-top: 8px; }
+.pixel-game .pixel-details { margin-block: 0; }
+.pixel-game .pixel-details summary { cursor: pointer; font-weight: 700; font-size: .875rem; }
+.pixel-game .pixel-alert { max-height: calc(100dvh - 2rem); overflow-y: auto; }
+@media (max-width: 640px) {
+  .pixel-game .pixel-shell { padding: 16px 14px 36px; }
+}
+}
+.pixel-game .font-pixel { letter-spacing: normal; }
+.pixel-game .px-bob, .pixel-game .px-sheet-in, .pixel-game .px-blink { animation: none; }
