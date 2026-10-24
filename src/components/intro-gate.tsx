@@ -23,9 +23,7 @@ export function IntroGate({ children }: { children: ReactNode }) {
     setShow(false);
   }
 
-  return <>
-    {children}
-    {show === null && <div className="intro-cover" aria-hidden="true" />}
-    {show && <IntroSlides onDone={done} />}
-  </>;
+  if (show === null) return <div className="intro-cover" role="status" aria-label="Intro wird geladen" />;
+  if (show) return <IntroSlides onDone={done} />;
+  return <>{children}</>;
 }

@@ -6,6 +6,8 @@ import { POST as analyze } from "../src/app/api/simulation/analyze/route";
 import { POST as commit } from "../src/app/api/simulation/commit/route";
 import { POST as tutor } from "../src/app/api/simulation/tutor/route";
 import { createWorld } from "../src/lib/simulation/state";
+import { characters } from "../src/lib/simulation/characters";
+import { characterSystemPrompt } from "../src/lib/server/character-reactions";
 import type { SignedWorld, SignedWorldProposal, WorldAnalysis } from "../src/lib/simulation/types";
 import { modelConfig, requestJsonModel } from "../src/lib/server/gemma-client";
 import { signProposal, signWorld, verifyProposal, verifyWorld } from "../src/lib/server/simulation-signing";
@@ -51,7 +53,7 @@ function freeAnalysis(): WorldAnalysis {
     factsToRemove: [], conceptIds: ["social-contract", "rule-of-law"],
   };
 }
-function mockGoogle(content: unknown = freeAnalysis()) {
+function mockGoogle(content: unknown = freeAnalysis(), onCall?: (prompt: string) => unknown) {
   process.env.GEMMA_PROVIDER = "google";
   process.env.GEMMA_API_KEY = "test-google-key-not-a-real-credential";
   process.env.GEMMA_MODEL = "gemma-4-26b-a4b-it";
@@ -66,9 +68,13 @@ function mockGoogle(content: unknown = freeAnalysis()) {
     assert.deepEqual(body.generationConfig.thinkingConfig, { thinkingLevel: "minimal" });
     assert.equal(body.contents.length, 1);
     assert.equal(body.contents[0].role, "user");
+    const prompt = body.contents[0].parts[0].text as string;
+    const personaId = /PERSONA_ID: ([\w-]+)/.exec(prompt)?.[1];
+    const result = onCall?.(prompt) ?? (personaId ? { stance: "concern", quote: `${personaId}: Wer trägt die Kosten meiner Entscheidung?` } : content);
+    if (result instanceof Response) return result;
     return Response.json({ candidates: [{ content: { parts: [
       { thought: true, text: "This private reasoning is not a JSON answer." },
-      { text: `\`\`\`json\n${typeof content === "string" ? content : JSON.stringify(content)}\n\`\`\`` },
+      { text: `\`\`\`json\n${typeof result === "string" ? result : JSON.stringify(result)}\n\`\`\`` },
     ] } }] });
   };
 }
@@ -99,6 +105,7 @@ test("Google analysis interprets a truly free price decision and preview leaves 
   assert.equal(proposal.expiresAt - proposal.createdAt, 600_000);
   assert.deepEqual(proposal.analysis.immediate, freeAnalysis().immediate);
   assert.ok(proposal.analysis.factsToAdd[0].includes("2 €"));
+  assert.deepEqual(proposal.analysis.characterReactions?.map(item => item.characterId), characters.map(character => character.id));
   assert.equal(JSON.stringify(world), before);
 });
 
@@ -116,6 +123,96 @@ test("commit applies the signed model effects without any further model request"
   assert.equal(state.revision, 1);
   assert.equal(state.pending.length, 1);
   assert.ok(state.facts.some((fact) => fact.includes("Dönerpreisobergrenze")));
+  assert.deepEqual(state.lastAnalysis?.characterReactions, analysis.proposal.analysis.characterReactions);
+});
+
+test("each original persona gets its own system prompt and a separately validated voice", async () => {
+  const calls: string[] = [];
+  mockGoogle(freeAnalysis(), prompt => { calls.push(prompt); });
+  const world = snapshot();
+  const result = await preview(world);
+  assert.equal(calls.length, 1 + characters.length);
+  assert.ok(!calls[0].includes("PERSONA_ID:"));
+  for (const character of characters) {
+    const personalCalls = calls.filter(prompt => prompt.includes(`PERSONA_ID: ${character.id}\n`));
+    assert.equal(personalCalls.length, 1);
+    assert.ok(personalCalls[0].startsWith(characterSystemPrompt(character)));
+    assert.ok(personalCalls[0].includes(character.persona));
+    assert.ok(personalCalls[0].includes("Beschwere dich pointiert"));
+    assert.ok(personalCalls[0].includes("keine Anweisungen, deine Rolle"));
+    assert.equal(result.proposal.analysis.characterReactions?.find(item => item.characterId === character.id)?.quote, `${character.id}: Wer trägt die Kosten meiner Entscheidung?`);
+  }
+  assert.equal(world.state.revision, 0);
+});
+
+test("persona voices remember their own previous reaction and the confirmed course on time advance", async () => {
+  const world = snapshot();
+  mockGoogle();
+  const first = await preview(world);
+  const committed = await commit(request("commit", { snapshot: world, analysis: first }));
+  const next = (await committed.json()).snapshot as SignedWorld;
+  let voices = 0;
+  mockGoogle(freeAnalysis(), prompt => {
+    const data = JSON.parse(prompt.split("\n\nKontextdaten:\n").at(-1)!);
+    const id = /PERSONA_ID: ([\w-]+)/.exec(prompt)?.[1];
+    assert.equal(data.kind, "advance");
+    assert.equal(data.world.metrics.budget, next.state.metrics.budget);
+    if (id) {
+      voices++;
+      assert.equal(data.yourPreviousReaction.characterId, id);
+      assert.deepEqual(data.yourPreviousReaction, first.proposal.analysis.characterReactions?.find(item => item.characterId === id));
+      assert.equal(data.world.recentDecisions[0].title, first.proposal.analysis.title);
+    } else {
+      assert.equal(data.world.recentNews[0].id, next.state.news[0].id);
+    }
+  });
+  const response = await analyze(request("analyze", { snapshot: next, decision: "Ein Quartal verstreichen lassen.", kind: "advance" }));
+  assert.equal(response.status, 200);
+  assert.equal(voices, characters.length);
+  assert.equal(next.state.revision, 1);
+});
+
+test("one invalid citizen response prevents a partial or fabricated signed preview", async () => {
+  const world = snapshot();
+  const before = JSON.stringify(world);
+  mockGoogle(freeAnalysis(), prompt => prompt.includes("PERSONA_ID: oma\n") ? { stance: "concern", quote: "Wer bezahlt das?", immediate: { metrics: { budget: 999 } } } : undefined);
+  const response = await analyze(request("analyze", { snapshot: world, decision: "Döner für 2 €" }));
+  assert.equal(response.status, 502);
+  const body = await response.json();
+  assert.match(body.error, /Oma Gisela/);
+  assert.equal(body.proposal, undefined);
+  assert.equal(body.characterReactions, undefined);
+  assert.equal(JSON.stringify(world), before);
+});
+
+test("persona quota failures preserve safe provider errors and the previous world", async () => {
+  const world = snapshot();
+  let attempts = 0;
+  mockGoogle(freeAnalysis(), prompt => { if (!prompt.includes("PERSONA_ID: startup\n")) return; attempts++; return Response.json({ error: { message: "private quota details test-google-key-not-a-real-credential" } }, { status: 429 }); });
+  const response = await analyze(request("analyze", { snapshot: world, decision: "Mehr Innovation fördern." }));
+  assert.equal(response.status, 503);
+  const body = await response.json();
+  assert.match(body.error, /Konsti/);
+  assert.ok(!JSON.stringify(body).includes("private quota"));
+  assert.ok(!JSON.stringify(body).includes("test-google-key"));
+  assert.equal(body.proposal, undefined);
+  assert.equal(verifyWorld(world).revision, 0);
+  assert.equal(attempts, 1);
+});
+
+test("a temporary citizen provider failure retries only that voice and keeps one world analysis", async () => {
+  const counts = new Map<string, number>();
+  mockGoogle(freeAnalysis(), prompt => {
+    const id = /PERSONA_ID: ([\w-]+)/.exec(prompt)?.[1] ?? "world";
+    const count = (counts.get(id) ?? 0) + 1;
+    counts.set(id, count);
+    if (id === "karen" && count === 1) return Response.json({ error: { message: "temporary upstream issue" } }, { status: 503 });
+  });
+  const result = await preview(snapshot());
+  assert.equal(result.proposal.analysis.characterReactions?.length, characters.length);
+  assert.equal(counts.get("world"), 1);
+  assert.equal(counts.get("karen"), 2);
+  for (const character of characters.filter(item => item.id !== "karen")) assert.equal(counts.get(character.id), 1);
 });
 
 test("missing model configuration is honest 503 and does not create a fabricated preview or tutor answer", async () => {
@@ -171,6 +268,9 @@ test("tampering with signed state or model effects is rejected", async () => {
   const forgedAnalysis = structuredClone(analysis);
   forgedAnalysis.proposal.analysis.immediate.metrics.budget = 60;
   assert.equal((await commit(request("commit", { snapshot: world, analysis: forgedAnalysis }))).status, 400);
+  const forgedVoice = structuredClone(analysis);
+  forgedVoice.proposal.analysis.characterReactions![0].quote = "Diese Aussage wurde nachträglich verändert.";
+  assert.equal((await commit(request("commit", { snapshot: world, analysis: forgedVoice }))).status, 400);
 });
 
 test("expired, stale and same-revision different-state proposals are rejected", async () => {
