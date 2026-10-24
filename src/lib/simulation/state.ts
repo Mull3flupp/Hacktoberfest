@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { applyDecision, createGame } from "../game/engine";
-import { CHARACTER_IDS } from "./characters";
+import { CHARACTER_IDS, VISITOR_LOOKS } from "./characters";
 import type { WorldAnalysis, WorldEffects, WorldProposal, WorldState } from "./types";
 
 const safeInteger = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
@@ -36,9 +36,17 @@ export const worldAnalysisSchema = z.object({
   assumptions: strings(8, 1000), benefits: strings(8, 1000), costs: strings(8, 1000), risks: strings(8, 1000),
   immediate: worldEffectsSchema,
   delayed: z.array(z.object({ afterRounds: z.number().int().min(1).max(6), description: text(1000), effects: worldEffectsSchema }).strict()).max(6),
-  reactions: z.array(z.object({ name: text(100), role: text(160), stance: z.enum(["support", "concern", "oppose", "mixed"]), quote: text(1000) }).strict()).max(8),
-  characterReactions: z.array(z.object({ characterId: z.enum(CHARACTER_IDS), stance: z.enum(["support", "concern", "oppose", "mixed"]), quote: text(400) }).strict()).max(CHARACTER_IDS.length)
-    .refine((items) => new Set(items.map((item) => item.characterId)).size === items.length, "Jede Figur darf nur einmal reagieren.").optional(),
+  reactions: z.array(z.object({
+    name: text(100), role: text(160), stance: z.enum(["support", "concern", "oppose", "mixed"]), quote: text(1000),
+    // Darstellung in der Zwischensequenz. Unbekannte Werte verwerfen statt die ganze Analyse abzulehnen.
+    look: z.preprocess((value) => (VISITOR_LOOKS as readonly unknown[]).includes(value) ? value : undefined, z.enum(VISITOR_LOOKS).optional()),
+    count: z.preprocess((value) => typeof value === "number" && Number.isFinite(value) ? Math.min(4, Math.max(1, Math.round(value))) : undefined, z.number().int().min(1).max(4).optional()),
+  }).strict()).max(8),
+  // Unbekannte oder doppelte Figuren werden aussortiert, damit ein Modellfehler nicht die ganze Analyse verwirft.
+  characterReactions: z.preprocess(
+    (value) => Array.isArray(value) ? value.filter((item, index) => !!item && typeof item === "object" && (CHARACTER_IDS as readonly unknown[]).includes(item.characterId) && value.findIndex((other) => other?.characterId === item.characterId) === index) : value,
+    z.array(z.object({ characterId: z.enum(CHARACTER_IDS), stance: z.enum(["support", "concern", "oppose", "mixed"]), quote: text(400) }).strict()).max(CHARACTER_IDS.length).optional(),
+  ),
   followUps: strings(5, 1000), factsToAdd: strings(12, 600), factsToRemove: strings(32, 600),
   conceptIds: z.array(conceptId).max(6).refine((items) => new Set(items).size === items.length, "Begriffs-IDs dürfen nicht doppelt vorkommen."),
 }).strict();

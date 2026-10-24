@@ -44,6 +44,9 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 | `PersonSprite` | Die sieben festen Bürgerfiguren (Finn, Oma Gisela, Bauer Heinz, Lea, Mika, Karen, Konsti) |
 | `PeopleBar` | Bürgerfiguren beim Beschluss mit auswählbarer Sprechblase und Haltung (+ dafür, − dagegen, ? Bedenken, ~ zwiespältig) |
 | `IntroSlides` | Durchklickbare Intro-Show mit animierten Pixel-Szenen, endet mit „Du wurdest gewählt!“ |
+| `Cutscene`, `buildVisitors` | Zwischensequenz in Ego-Perspektive: Du sitzt am Schreibtisch, Betroffene und feste Figuren kommen durch die Tür auf dich zu und sagen ihre Meinung. Raum und Tisch in `officeScene.tsx` |
+| `VisitorSprite` | Besucherfiguren für die Zwischensequenz: `imbiss`, `studierende`, `handwerk`, `business`, `senioren`, `familie`, `verwaltung`, `buerger` |
+| `characterSprite32`, `visitorSprite32` | 32×32-Figuren nur für die Zwischensequenz, mit Gesichtsausdruck (`neutral`, `happy`, `angry`, `worried`) und zwei Lauf-Bildern; aus Bausteinen gebaut in `sprites32.ts` |
 
 ## Intro und Bürgerfiguren
 
@@ -51,6 +54,14 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 - **Figuren:** Namen, Rollen und die unveränderten Charakterbeschreibungen stehen in `src/lib/simulation/characters.ts`. `src/lib/server/character-reactions.ts` erzeugt daraus pro Figur einen eigenen System-Prompt und eine separate Gemma-Anfrage. Jede Stimme kennt die vorgeschlagenen Weltfolgen und ihre eigene letzte Reaktion. `characterReactions` wird mit der Vorschau signiert und nach Bestätigung im Weltzustand behalten. Ältere Spielstände ohne diese Reaktionen bleiben gültig; die Leiste zeigt dann die Leerlauf-Sprüche.
 - **Intro-Gate:** Solange das Intro läuft, wird die darunterliegende Spielansicht nicht geöffnet oder per Tastatur bedienbar. Nach Ende oder Überspringen wird ein gespeichertes Land wie bisher geladen.
 - PeopleBar und IntroSlides bringen ihre eigenen CSS-Dateien (`people.css`, `intro.css`) mit und funktionieren deshalb auch außerhalb von `.px-root`.
+
+## Zwischensequenz
+
+- Startet im Spiel automatisch, sobald nach „Folgen analysieren“ eine Vorschau da ist (`open-world.tsx`, `cutsceneFor`). „Überspringen“ oder Escape führt direkt zur Vorschau.
+- Die Szene verwendet einen nativen modalen Dialog: Das Dashboard bleibt währenddessen per Tastatur und Maus gesperrt. Enter auf „Überspringen“ beendet die Szene direkt.
+- `buildVisitors` nimmt zuerst bis zu drei direkt Betroffene aus `analysis.reactions` (Gemma wählt dafür `look` und `count` 1–4) und danach bis zu drei feste Figuren mit möglichst unterschiedlicher Haltung.
+- Unbekannte `look`-Werte oder doppelte Figuren aus der KI-Antwort werden aussortiert, statt die ganze Analyse abzulehnen.
+- In `/ui-demo` lässt sich die Szene mit Beispielsätzen zum Dönerpreis abspielen.
 
 ## Neutralität
 

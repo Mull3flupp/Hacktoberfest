@@ -1,6 +1,6 @@
 import type { CampaignSetup, CampaignMetrics, GroupId } from "../campaign/types";
 import type { ConceptId, Institutions } from "../game/types";
-import type { CharacterId } from "./characters";
+import type { CharacterId, VisitorLook } from "./characters";
 
 export type WorldSetup = CampaignSetup;
 export interface WorldEffects {
@@ -8,7 +8,13 @@ export interface WorldEffects {
   groups: Partial<Record<GroupId, number>>;
   institutions?: Partial<Institutions>;
 }
-export interface ActorReaction { name: string; role: string; stance: "support" | "concern" | "oppose" | "mixed"; quote: string }
+export interface ActorReaction {
+  name: string; role: string; stance: "support" | "concern" | "oppose" | "mixed"; quote: string;
+  /** Aussehen in der Zwischensequenz; fehlt bei älteren Analysen */
+  look?: VisitorLook;
+  /** Wie viele Personen gemeinsam auftreten (1–4) */
+  count?: number;
+}
 export interface CharacterReaction { characterId: CharacterId; stance: ActorReaction["stance"]; quote: string }
 export interface WorldAnalysis {
   title: string;
