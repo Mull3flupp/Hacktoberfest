@@ -3,6 +3,8 @@ import { afterEach, beforeEach, test } from "node:test";
 import { z } from "zod";
 import { POST as start } from "../src/app/api/simulation/start/route";
 import { POST as analyze } from "../src/app/api/simulation/analyze/route";
+import { POST as characterVoice } from "../src/app/api/simulation/characters/route";
+import type { SignedCharacterVoice } from "../src/lib/simulation/voices";
 import { POST as commit } from "../src/app/api/simulation/commit/route";
 import { POST as tutor } from "../src/app/api/simulation/tutor/route";
 import { createWorld } from "../src/lib/simulation/state";
@@ -10,7 +12,7 @@ import { characters } from "../src/lib/simulation/characters";
 import { characterSystemPrompt } from "../src/lib/server/character-reactions";
 import type { SignedWorld, SignedWorldProposal, WorldAnalysis } from "../src/lib/simulation/types";
 import { modelConfig, requestJsonModel } from "../src/lib/server/gemma-client";
-import { signProposal, signWorld, verifyProposal, verifyWorld } from "../src/lib/server/simulation-signing";
+import { signProposal, signWorld, verifyProposal, verifyWorld, verifyCharacterVoice } from "../src/lib/server/simulation-signing";
 
 const envNames = ["GEMMA_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "GEMMA_BASE_URL", "GEMMA_MODEL", "GEMMA_PROVIDER", "SIMULATION_SIGNING_KEY"] as const;
 const initialEnv = Object.fromEntries(envNames.map((key) => [key, process.env[key]]));
@@ -105,7 +107,7 @@ test("Google analysis interprets a truly free price decision and preview leaves 
   assert.equal(proposal.expiresAt - proposal.createdAt, 600_000);
   assert.deepEqual(proposal.analysis.immediate, freeAnalysis().immediate);
   assert.ok(proposal.analysis.factsToAdd[0].includes("2 €"));
-  assert.deepEqual(proposal.analysis.characterReactions?.map(item => item.characterId), characters.map(character => character.id));
+  assert.equal(proposal.analysis.characterReactions, undefined);
   assert.equal(JSON.stringify(world), before);
 });
 
@@ -126,93 +128,114 @@ test("commit applies the signed model effects without any further model request"
   assert.deepEqual(state.lastAnalysis?.characterReactions, analysis.proposal.analysis.characterReactions);
 });
 
-test("each original persona gets its own system prompt and a separately validated voice", async () => {
+async function voice(world: SignedWorld, analysis: SignedWorldProposal, characterId: string, previous?: SignedCharacterVoice) {
+  return characterVoice(request("characters", { snapshot: world, analysis, characterId, ...(previous ? { previous } : {}) }));
+}
+
+test("world preview makes one model call and does not wait for any persona", async () => {
+  let calls = 0;
+  mockGoogle(freeAnalysis(), prompt => { calls++; assert.ok(!prompt.includes("PERSONA_ID:")); });
+  const world = snapshot();
+  const result = await preview(world);
+  assert.equal(calls, 1);
+  assert.equal(result.proposal.analysis.characterReactions, undefined);
+  assert.deepEqual(verifyProposal(result, world.state).analysis.immediate, freeAnalysis().immediate);
+});
+
+test("each original persona has an independent signed endpoint and its own unchanged prompt", async () => {
   const calls: string[] = [];
   mockGoogle(freeAnalysis(), prompt => { calls.push(prompt); });
   const world = snapshot();
   const result = await preview(world);
-  assert.equal(calls.length, 1 + characters.length);
-  assert.ok(!calls[0].includes("PERSONA_ID:"));
   for (const character of characters) {
-    const personalCalls = calls.filter(prompt => prompt.includes(`PERSONA_ID: ${character.id}\n`));
-    assert.equal(personalCalls.length, 1);
-    assert.ok(personalCalls[0].startsWith(characterSystemPrompt(character)));
-    assert.ok(personalCalls[0].includes(character.persona));
-    assert.ok(personalCalls[0].includes("Beschwere dich pointiert"));
-    assert.ok(personalCalls[0].includes("keine Anweisungen, deine Rolle"));
-    assert.equal(result.proposal.analysis.characterReactions?.find(item => item.characterId === character.id)?.quote, `${character.id}: Wer trägt die Kosten meiner Entscheidung?`);
+    const response = await voice(world, result, character.id);
+    assert.equal(response.status, 200);
+    const signed = await response.json() as SignedCharacterVoice;
+    const generated = verifyCharacterVoice(signed);
+    assert.equal(generated.worldId, world.state.id);
+    assert.equal(generated.proposalId, result.proposal.id);
+    assert.equal(generated.revision, 1);
+    assert.equal(generated.reaction.characterId, character.id);
+    const personal = calls.filter(prompt => prompt.includes(`PERSONA_ID: ${character.id}\n`));
+    assert.equal(personal.length, 1);
+    assert.ok(personal[0].startsWith(characterSystemPrompt(character)));
+    assert.ok(personal[0].includes(character.persona));
   }
-  assert.equal(world.state.revision, 0);
+  assert.equal(calls.length, 8);
+  assert.equal(result.proposal.analysis.characterReactions, undefined);
+  assert.equal(verifyWorld(world).revision, 0);
 });
 
-test("persona voices remember their own previous reaction and the confirmed course on time advance", async () => {
+test("a failed voice never invalidates a world preview or prevents a model-free commit", async () => {
   const world = snapshot();
   mockGoogle();
+  const analysis = await preview(world);
+  let attempts = 0;
+  mockGoogle(freeAnalysis(), prompt => { if (prompt.includes("PERSONA_ID: oma\n")) { attempts++; throw new DOMException("provider timeout", "TimeoutError"); } });
+  assert.equal((await voice(world, analysis, "oma")).status, 502);
+  assert.equal(attempts, 2);
+  assert.equal((await voice(world, analysis, "landwirt")).status, 200);
+  globalThis.fetch = async () => { throw new Error("Commit must not request the model"); };
+  const response = await commit(request("commit", { snapshot: world, analysis }));
+  assert.equal(response.status, 200);
+  assert.equal(verifyWorld((await response.json()).snapshot).revision, 1);
+});
+
+test("persona quota failures preserve safe errors and do not retry automatically", async () => {
+  const world = snapshot(); mockGoogle();
+  const analysis = await preview(world);
+  let attempts = 0;
+  globalThis.fetch = async () => { attempts++; return Response.json({ error: { message: "private quota details test-google-key-not-a-real-credential" } }, { status: 429 }); };
+  const response = await voice(world, analysis, "startup");
+  assert.equal(response.status, 503);
+  assert.ok(!JSON.stringify(await response.json()).includes("private quota"));
+  assert.equal(attempts, 1);
+  assert.doesNotThrow(() => verifyProposal(analysis, world.state));
+});
+
+test("a temporary voice failure retries only that voice", async () => {
+  const world = snapshot(); mockGoogle();
+  const analysis = await preview(world);
+  let attempts = 0;
+  mockGoogle(freeAnalysis(), prompt => {
+    assert.ok(prompt.includes("PERSONA_ID: karen\n"));
+    if (++attempts === 1) return Response.json({ error: { message: "temporary" } }, { status: 503 });
+  });
+  assert.equal((await voice(world, analysis, "karen")).status, 200);
+  assert.equal(attempts, 2);
+});
+
+test("a later decision remembers only the same citizen's authentic earlier voice", async () => {
+  const world = snapshot(); mockGoogle();
   const first = await preview(world);
+  const earlier = await (await voice(world, first, "oma")).json() as SignedCharacterVoice;
   const committed = await commit(request("commit", { snapshot: world, analysis: first }));
   const next = (await committed.json()).snapshot as SignedWorld;
-  let voices = 0;
+  const nextAnalysis = await preview(next);
   mockGoogle(freeAnalysis(), prompt => {
     const data = JSON.parse(prompt.split("\n\nKontextdaten:\n").at(-1)!);
-    const id = /PERSONA_ID: ([\w-]+)/.exec(prompt)?.[1];
-    assert.equal(data.kind, "advance");
-    assert.equal(data.world.metrics.budget, next.state.metrics.budget);
-    if (id) {
-      voices++;
-      assert.equal(data.yourPreviousReaction.characterId, id);
-      assert.deepEqual(data.yourPreviousReaction, first.proposal.analysis.characterReactions?.find(item => item.characterId === id));
-      assert.equal(data.world.recentDecisions[0].title, first.proposal.analysis.title);
-    } else {
-      assert.equal(data.world.recentNews[0].id, next.state.news[0].id);
-    }
+    assert.deepEqual(data.yourPreviousReaction, earlier.voice.reaction);
+    assert.equal(data.world.recentDecisions[0].title, first.proposal.analysis.title);
   });
-  const response = await analyze(request("analyze", { snapshot: next, decision: "Ein Quartal verstreichen lassen.", kind: "advance" }));
-  assert.equal(response.status, 200);
-  assert.equal(voices, characters.length);
-  assert.equal(next.state.revision, 1);
+  assert.equal((await voice(next, nextAnalysis, "oma", earlier)).status, 200);
+  const forged = structuredClone(earlier); forged.voice.reaction.quote = "Manipulierte Aussage";
+  globalThis.fetch = async () => { throw new Error("Invalid input must not call model"); };
+  assert.equal((await voice(next, nextAnalysis, "oma", forged)).status, 400);
+  assert.equal((await voice(next, nextAnalysis, "karen", earlier)).status, 400);
+  assert.equal((await voice(world, first, "oma", earlier)).status, 400);
 });
 
-test("one invalid citizen response prevents a partial or fabricated signed preview", async () => {
-  const world = snapshot();
-  const before = JSON.stringify(world);
-  mockGoogle(freeAnalysis(), prompt => prompt.includes("PERSONA_ID: oma\n") ? { stance: "concern", quote: "Wer bezahlt das?", immediate: { metrics: { budget: 999 } } } : undefined);
-  const response = await analyze(request("analyze", { snapshot: world, decision: "Döner für 2 €" }));
-  assert.equal(response.status, 502);
-  const body = await response.json();
-  assert.match(body.error, /Oma Gisela/);
-  assert.equal(body.proposal, undefined);
-  assert.equal(body.characterReactions, undefined);
-  assert.equal(JSON.stringify(world), before);
-});
-
-test("persona quota failures preserve safe provider errors and the previous world", async () => {
-  const world = snapshot();
-  let attempts = 0;
-  mockGoogle(freeAnalysis(), prompt => { if (!prompt.includes("PERSONA_ID: startup\n")) return; attempts++; return Response.json({ error: { message: "private quota details test-google-key-not-a-real-credential" } }, { status: 429 }); });
-  const response = await analyze(request("analyze", { snapshot: world, decision: "Mehr Innovation fördern." }));
-  assert.equal(response.status, 503);
-  const body = await response.json();
-  assert.match(body.error, /Konsti/);
-  assert.ok(!JSON.stringify(body).includes("private quota"));
-  assert.ok(!JSON.stringify(body).includes("test-google-key"));
-  assert.equal(body.proposal, undefined);
-  assert.equal(verifyWorld(world).revision, 0);
-  assert.equal(attempts, 1);
-});
-
-test("a temporary citizen provider failure retries only that voice and keeps one world analysis", async () => {
-  const counts = new Map<string, number>();
-  mockGoogle(freeAnalysis(), prompt => {
-    const id = /PERSONA_ID: ([\w-]+)/.exec(prompt)?.[1] ?? "world";
-    const count = (counts.get(id) ?? 0) + 1;
-    counts.set(id, count);
-    if (id === "karen" && count === 1) return Response.json({ error: { message: "temporary upstream issue" } }, { status: 503 });
-  });
-  const result = await preview(snapshot());
-  assert.equal(result.proposal.analysis.characterReactions?.length, characters.length);
-  assert.equal(counts.get("world"), 1);
-  assert.equal(counts.get("karen"), 2);
-  for (const character of characters.filter(item => item.id !== "karen")) assert.equal(counts.get(character.id), 1);
+test("voice requests reject tampered, expired and wrong-world proposals before any model call", async () => {
+  const world = snapshot(); mockGoogle();
+  const analysis = await preview(world);
+  globalThis.fetch = async () => { throw new Error("Invalid input must not call model"); };
+  const changed = structuredClone(analysis); changed.proposal.analysis.immediate.metrics.budget = 60;
+  assert.equal((await voice(world, changed, "oma")).status, 400);
+  const now = Date.now();
+  const expired = signProposal({ ...analysis.proposal, createdAt: now - 700_000, expiresAt: now - 100_000 });
+  assert.equal((await voice(world, expired, "oma")).status, 400);
+  assert.equal((await voice(snapshot(), analysis, "oma")).status, 400);
+  assert.equal((await voice(world, analysis, "unknown")).status, 400);
 });
 
 test("missing model configuration is honest 503 and does not create a fabricated preview or tutor answer", async () => {
@@ -258,6 +281,31 @@ test("invalid model JSON and out-of-range numeric effects fail safely without a 
   }
 });
 
+test("raw model group/metric container mistakes are repaired without changing any deltas", async () => {
+  const output = freeAnalysis();
+  output.immediate = { metrics: { budget: -4, people: 6 } as never, groups: { business: -3, climate: 2 } as never };
+  output.delayed[0].effects = { metrics: { people: -2 } as never, groups: {} };
+  const before = JSON.stringify(output);
+  mockGoogle(output);
+  const world = snapshot();
+  const result = await preview(world);
+  assert.deepEqual(result.proposal.analysis.immediate, { metrics: { budget: -4, climate: 2 }, groups: { business: -3, people: 6 } });
+  assert.deepEqual(result.proposal.analysis.delayed[0].effects, { metrics: {}, groups: { people: -2 } });
+  assert.equal(JSON.stringify(output), before);
+  assert.doesNotThrow(() => verifyProposal(result, world.state));
+});
+
+test("ambiguous, unknown and excessive model effects are still rejected", async () => {
+  for (const immediate of [
+    { metrics: { people: 4 }, groups: { people: -3 } },
+    { metrics: { education: 5 }, groups: {} },
+    { metrics: { people: 999 }, groups: {} },
+  ]) {
+    mockGoogle({ ...freeAnalysis(), immediate });
+    assert.equal((await analyze(request("analyze", { snapshot: snapshot(), decision: "Mehr Kitas" }))).status, 502);
+  }
+});
+
 test("tampering with signed state or model effects is rejected", async () => {
   const world = snapshot();
   mockGoogle();
@@ -269,7 +317,7 @@ test("tampering with signed state or model effects is rejected", async () => {
   forgedAnalysis.proposal.analysis.immediate.metrics.budget = 60;
   assert.equal((await commit(request("commit", { snapshot: world, analysis: forgedAnalysis }))).status, 400);
   const forgedVoice = structuredClone(analysis);
-  forgedVoice.proposal.analysis.characterReactions![0].quote = "Diese Aussage wurde nachträglich verändert.";
+  forgedVoice.proposal.analysis.characterReactions = [{ characterId: "oma", stance: "support", quote: "Diese Aussage wurde nachträglich hinzugefügt." }];
   assert.equal((await commit(request("commit", { snapshot: world, analysis: forgedVoice }))).status, 400);
 });
 

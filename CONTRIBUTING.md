@@ -20,11 +20,12 @@ Der Entwicklungsstart richtet Abhängigkeiten und Build-Cache außerhalb des Clo
 | Welt- und Analyseverträge | `src/lib/simulation/types.ts` |
 | Validierung, Ausgangszustand, bestätigte und verzögerte Folgen | `src/lib/simulation/state.ts` |
 | Signaturen, Gültigkeitsdauer und Bindung an die Welt | `src/lib/server/simulation-signing.ts` |
-| Individuelle Analyse und Weltkontext | `src/lib/server/world-model.ts` |
+| Individuelle Analyse und Weltkontext | `src/lib/server/world-model.ts`; reine Formatkorrektur der Modellausgabe in `src/lib/server/model-effects.ts` |
 | Sieben Original-Personas und eigene Gemma-System-Prompts | `src/lib/simulation/characters.ts`, `src/lib/server/character-reactions.ts` |
 | Intro und Bürgerleiste | `src/components/intro-gate.tsx`, `src/components/ui/IntroSlides.tsx`, `src/components/ui/PeopleBar.tsx` |
 | Google-/OpenRouter-Anbindung | `src/lib/server/gemma-client.ts` |
-| HTTP-Verträge | `src/app/api/simulation/` |
+| HTTP-Verträge | `src/app/api/simulation/` (Folgenanalyse und einzelne Bürgerstimmen getrennt) |
+| Laden und separates Speichern der Bürgerstimmen | `src/components/use-citizen-voices.ts`, `src/lib/simulation/citizen-loading.ts`, `src/lib/simulation/voices.ts` |
 | Lernkarten, Fragen und Quellen | `src/components/learning-panel.tsx`, `src/data/concepts.json`, `src/lib/game/learning.ts` |
 | Sprache | `src/components/voice-panel.tsx`, `docs/voice-agent.md` |
 

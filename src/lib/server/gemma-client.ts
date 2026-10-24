@@ -26,6 +26,7 @@ interface JsonModelRequest<T> {
   maxTokens?: number;
   temperature?: number;
   timeoutMs?: number;
+  signal?: AbortSignal;
 }
 
 function providerError(status: number, body: string): ModelError {
@@ -42,7 +43,7 @@ function providerError(status: number, body: string): ModelError {
   return new ModelError(502, "Gemma ist gerade nicht erreichbar oder konnte die Anfrage nicht verarbeiten. Dein Spielstand bleibt unverändert.", status >= 500 || status === 408);
 }
 
-export async function requestJsonModel<T>({ system, task, data, schema, maxTokens = 3000, temperature = 0.35, timeoutMs = 45_000 }: JsonModelRequest<T>): Promise<T> {
+export async function requestJsonModel<T>({ system, task, data, schema, maxTokens = 3000, temperature = 0.35, timeoutMs = 45_000, signal }: JsonModelRequest<T>): Promise<T> {
   const config = modelConfig();
   if (!config.apiKey) throw new ModelError(503, "Gemma ist noch nicht eingerichtet. Für freie Entscheidungen wird eine echte Modellverbindung benötigt.");
   const context = `${task}\n\nKontextdaten:\n${JSON.stringify(data)}`;
@@ -68,7 +69,7 @@ export async function requestJsonModel<T>({ system, task, data, schema, maxToken
       headers: google
         ? { "x-goog-api-key": config.apiKey, "Content-Type": "application/json" }
         : { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json", "X-OpenRouter-Title": "Wenn ich König von Deutschland wäre" },
-      body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs), cache: "no-store",
+      body: JSON.stringify(body), signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs), cache: "no-store",
     });
     const raw = await response.text();
     if (!response.ok) throw providerError(response.status, raw);
@@ -89,7 +90,7 @@ export async function requestJsonModel<T>({ system, task, data, schema, maxToken
   } catch (error) {
     if (error instanceof ModelError) throw error;
     if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
-      throw new ModelError(502, "Gemmas Antwort hat zu lange gedauert. Bitte erneut versuchen; es wurde nichts verändert.", true);
+      throw new ModelError(502, "Gemmas Antwort hat zu lange gedauert. Bitte erneut versuchen; es wurde nichts verändert.", !signal?.aborted);
     }
     throw new ModelError(502, "Gemma hat keine gültige strukturierte Antwort geliefert. Es wurde nichts verändert; bitte erneut versuchen.", true);
   }
