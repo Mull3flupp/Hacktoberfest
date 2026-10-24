@@ -2,31 +2,52 @@ import type { CharacterId, VisitorLook } from "../simulation/characters";
 
 /**
  * Feste ElevenLabs-Stimmen je Figur. Jede Figur behält ihre Stimme im ganzen Spiel.
- * Aktuelle ElevenLabs-Standardstimmen; die alten IDs laufen Ende 2026 aus.
+ * Diese IDs sind mit dem eingerichteten ElevenLabs-Konto verfügbar.
+ * Für auslaufende Standardstimmen stehen Nachfolger bereit.
  */
 export const VOICES = {
   professor: "6WwXjDDEMyNmFG95zycZ", // Eldrin: ruhig, erklärend
-  richter: "fnYMz3F5gMEDGMWcH1ex", // Finley: sachlich
+  richter: "onwK4e9ZLuTAKqWW03F9", // Daniel: sachlich
   erzaehler: "22N9cF8z0o7y23njdyaY", // Florence
-  "finance-bro": "ktkP7Nsj67dw2zcplQYt", // Lawrence: selbstbewusst
-  oma: "QtY3JBOUKEB5xzrRfOKc", // Maisie: weiblich, nachbarschaftlich
-  landwirt: "gOupLcAkjEnguROwi4oS", // Darian: bodenständig
-  umwelt: "g7LVvkPWALzPxOQbF6OE", // Jade: lebhaft
-  berlin: "7QN34D2r3hCNwbOYIeK0", // Warren: locker
-  karen: "OZ0L6eISlOejga3XjDFt", // Talia: warm, bestimmt
-  startup: "jSuBIjxMKhqIfb0wCK1F", // Baxter
-  "look:imbiss": "fs2OqxduwXgp9foh2xjK", // Callum
-  "look:studierende": "WQP7cQUF5aAS6Axh5yaa", // Elara
-  "look:handwerk": "10NkTYmU7tSz3Kkl3Lex", // Kaelen
-  "look:business": "l7kNoIfnJKPg7779LI2t", // Eddie
-  "look:senioren": "BFd5oBc2DDna33pSi4Gf", // Alicia
-  "look:familie": "dvbL7qkNGZY1IqPGZAjM", // Elowen
-  "look:verwaltung": "AaOhDHYJ1XLZk74lXhdE", // Caleb
+  "finance-bro": "TX3LPaxmHKxFdv7VOQHJ", // Liam: jung, selbstbewusst
+  oma: "hpp4J3VqNfWAUOO0d1Us", // Bella: weiblich, warm
+  landwirt: "CwhRBWXzGAHq8TQ4Fs17", // Roger: bodenständig
+  umwelt: "cgSgspJ2msm6clMCkdW9", // Jessica: jung, lebhaft
+  berlin: "bIHbv24MWmeRgasZH58o", // Will: jung, locker
+  karen: "EXAVITQu4vr4xnSDxMaL", // Sarah: bestimmt
+  startup: "IKne3meq5aSn9XLyUdCD", // Charlie: energiegeladen
+  "look:imbiss": "N2lVS1w4EtoT3dr4eOWO", // Callum
+  "look:studierende": "FGY2WhTYpPnrIDTdsKH5", // Laura
+  "look:handwerk": "SOYHLrjzK2X1ezoPC6cr", // Harry
+  "look:business": "cjVigY5qzO86Huf0OWal", // Eric
+  "look:senioren": "Xb7hH8MSUJpSbSDYk0k2", // Alice
+  "look:familie": "QtY3JBOUKEB5xzrRfOKc", // Maisie
+  "look:verwaltung": "iP95p4xoKVk53GoZ742B", // Chris
   "look:buerger": "8dEUmyPMdDdK91vboYih", // Sawyer
 } as const satisfies Record<"professor" | "richter" | "erzaehler" | CharacterId | `look:${VisitorLook}`, string>;
 
 /** Stimmen für dynamisch erzeugte Figuren ohne feste Zuordnung (dürfen sich wiederholen). */
-const POOL = ["8dEUmyPMdDdK91vboYih", "l7kNoIfnJKPg7779LI2t", "AaOhDHYJ1XLZk74lXhdE", "fs2OqxduwXgp9foh2xjK", "10NkTYmU7tSz3Kkl3Lex", "WQP7cQUF5aAS6Axh5yaa", "BFd5oBc2DDna33pSi4Gf", "QtY3JBOUKEB5xzrRfOKc", "dvbL7qkNGZY1IqPGZAjM"];
+const POOL = ["8dEUmyPMdDdK91vboYih", "cjVigY5qzO86Huf0OWal", "iP95p4xoKVk53GoZ742B", "N2lVS1w4EtoT3dr4eOWO", "SOYHLrjzK2X1ezoPC6cr", "FGY2WhTYpPnrIDTdsKH5", "Xb7hH8MSUJpSbSDYk0k2", "XrExE9yKIg1WjnnlVkGX", "SAz9YHcvj6GT2YYXdXww", "pFZP5JQG7iQjIQuC4Bku", "nPczCjzI2devNBz1zQrb"];
+
+const REPLACEMENTS: Record<string, string> = {
+  onwK4e9ZLuTAKqWW03F9: "fnYMz3F5gMEDGMWcH1ex",
+  TX3LPaxmHKxFdv7VOQHJ: "ktkP7Nsj67dw2zcplQYt",
+  CwhRBWXzGAHq8TQ4Fs17: "gOupLcAkjEnguROwi4oS",
+  cgSgspJ2msm6clMCkdW9: "g7LVvkPWALzPxOQbF6OE",
+  bIHbv24MWmeRgasZH58o: "7QN34D2r3hCNwbOYIeK0",
+  EXAVITQu4vr4xnSDxMaL: "OZ0L6eISlOejga3XjDFt",
+  IKne3meq5aSn9XLyUdCD: "jSuBIjxMKhqIfb0wCK1F",
+  N2lVS1w4EtoT3dr4eOWO: "fs2OqxduwXgp9foh2xjK",
+  FGY2WhTYpPnrIDTdsKH5: "WQP7cQUF5aAS6Axh5yaa",
+  SOYHLrjzK2X1ezoPC6cr: "10NkTYmU7tSz3Kkl3Lex",
+  cjVigY5qzO86Huf0OWal: "l7kNoIfnJKPg7779LI2t",
+  Xb7hH8MSUJpSbSDYk0k2: "BFd5oBc2DDna33pSi4Gf",
+  XrExE9yKIg1WjnnlVkGX: "QtY3JBOUKEB5xzrRfOKc",
+  SAz9YHcvj6GT2YYXdXww: "dvbL7qkNGZY1IqPGZAjM",
+  pFZP5JQG7iQjIQuC4Bku: "22N9cF8z0o7y23njdyaY",
+  nPczCjzI2devNBz1zQrb: "8dEUmyPMdDdK91vboYih",
+  iP95p4xoKVk53GoZ742B: "AaOhDHYJ1XLZk74lXhdE",
+};
 
 /** Sprecherschlüssel: feste Figur oder eine zufällig zugewiesene Besucher-Stimme. */
 export type VoiceKey = string;
@@ -47,4 +68,9 @@ export function resolveVoice(key: VoiceKey): string {
   let hash = 0;
   for (const char of key) hash = (hash * 31 + char.codePointAt(0)!) >>> 0;
   return POOL[hash % POOL.length];
+}
+
+export function resolveVoiceCandidates(key: VoiceKey): string[] {
+  const primary = resolveVoice(key);
+  return REPLACEMENTS[primary] ? [primary, REPLACEMENTS[primary]] : [primary];
 }
