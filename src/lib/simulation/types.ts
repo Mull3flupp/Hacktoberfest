@@ -27,7 +27,7 @@ export interface WorldAnalysis {
   immediate: WorldEffects;
   delayed: { afterRounds: number; description: string; effects: WorldEffects }[];
   reactions: ActorReaction[];
-  /** Fehlt bei älteren Spielständen; sonst je eine Reaktion der festen Figuren. */
+  /** Legacy-Feld für bereits signierte Spielstände; neue Stimmen werden separat geladen. */
   characterReactions?: CharacterReaction[];
   followUps: string[];
   factsToAdd: string[];

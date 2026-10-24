@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { playSoundEffect, speakCharacter, stopCurrentSpeech, stopSoundEffect } from "@/lib/audio/manager";
-import type { VoiceKey } from "@/lib/audio/voices";
+import { voiceForVisitor } from "@/lib/audio/voices";
 import { getCharacter, type CharacterId, type VisitorLook } from "@/lib/simulation/characters";
 import type { ActorReaction, CharacterReaction, WorldAnalysis } from "@/lib/simulation/types";
 import { bodyFont, pixelFont } from "./fonts";
@@ -56,9 +56,6 @@ export function buildVisitors(analysis: Pick<WorldAnalysis, "reactions" | "chara
   }
   return visitors;
 }
-
-/** Feste Stimme je Figur bzw. je Besuchertyp */
-const voiceOf = (visitor: CutsceneVisitor): VoiceKey => ("character" in visitor.who ? visitor.who.character : `look:${visitor.who.look}`);
 
 const memberCount = (visitor: CutsceneVisitor) => ("count" in visitor.who ? visitor.who.count : 1);
 /** Breite einer Gruppe relativ zu einer Einzelperson (Mitglieder überlappen sich leicht) */
@@ -140,7 +137,7 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
   const [typed, setTyped] = useState(0);
   const current = visitors[index];
   const initialVisitors = useRef(visitors);
-  const spokenLine = current ? `${index}:${voiceOf(current)}:${current.quote}` : "";
+  const spokenLine = current ? `${index}:${voiceForVisitor(current.who)}:${current.quote}` : "";
   const quote = current ? `„${current.quote}“` : "";
 
   useEffect(() => {
@@ -174,7 +171,8 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
   // Der Besuch spricht seinen Satz mit eigener ElevenLabs-Stimme.
   useEffect(() => {
     if (phase !== "talk" || !current) return;
-    void speakCharacter(voiceOf(current), current.quote);
+    void speakCharacter(voiceForVisitor(current.who), current.quote);
+    return () => stopCurrentSpeech();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- nur bei neuem Satz sprechen, nicht bei jedem Render
   }, [phase, spokenLine]);
 
