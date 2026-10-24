@@ -9,6 +9,9 @@ import {
   GroupBlob,
   Gruender,
   InstitutionBadge,
+  IntroSlides,
+  PeopleBar,
+  PersonSprite,
   MicButton,
   MoodMeter,
   PixelButton,
@@ -23,6 +26,8 @@ import {
   type MicState,
   type Tradeoff,
 } from "../../components/ui";
+import { characters } from "@/lib/simulation/characters";
+import type { CharacterReaction } from "@/lib/simulation/types";
 
 /* ---------- Beispielinhalte (nur Demo, echte Inhalte kommen von C) ---------- */
 
@@ -72,6 +77,16 @@ const QUIZ = {
   correct: "a",
 };
 
+const SAMPLE_REACTIONS: CharacterReaction[] = [
+  { characterId: "finance-bro", stance: "oppose", quote: "Mietendeckel? Damit killst du jeden Investment-Case, Bro." },
+  { characterId: "oma", stance: "concern", quote: "Unter Schröder hätte es so was nicht gegeben. Glaube ich." },
+  { characterId: "landwirt", stance: "mixed", quote: "Mich betrifft das kaum. Hauptsache, keine neuen Formulare." },
+  { characterId: "umwelt", stance: "support", quote: "Endlich! Aber bitte klimafreundlich sanieren." },
+  { characterId: "berlin", stance: "support", quote: "Guter Anfang. Nächster Schritt: Enteignen!" },
+  { characterId: "karen", stance: "concern", quote: "Und wo bleiben die Kitaplätze in unserem Viertel?" },
+  { characterId: "startup", stance: "oppose", quote: "Deckel? Lieber ein Proptech-Startup, das Wohnraum skaliert!" },
+];
+
 /* ---------- kleine Hilfen für die Demo ---------- */
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -94,6 +109,8 @@ export default function UiDemoPage() {
   const [saved, setSaved] = useState(false);
   const [mic, setMic] = useState<MicState>("idle");
   const [mood, setMood] = useState(55);
+  const [introOpen, setIntroOpen] = useState(false);
+  const [reacting, setReacting] = useState(true);
 
   // Szenen-Flow
   const [choice, setChoice] = useState<string | null>(null);
@@ -336,6 +353,36 @@ export default function UiDemoPage() {
           locked={quizDone}
         />
       </Section>
+
+      <Section title="Intro-Show">
+        <p className="text-sm">Läuft auf der Startseite einmal pro Browser-Tab vor dem Spiel. Mit <code>/?intro</code> jederzeit erneut.</p>
+        <div>
+          <PixelButton variant="info" onClick={() => setIntroOpen(true)}>Intro abspielen</PixelButton>
+        </div>
+      </Section>
+
+      <Section title="Bürgerfiguren">
+        <div className="flex flex-wrap gap-4">
+          {characters.map((character) => (
+            <div key={character.id} className="flex flex-col items-center text-center">
+              <PersonSprite id={character.id} size={64} label={character.name} />
+              <span className="font-pixel text-sm">{character.name}</span>
+              <span className="text-xs">{character.role}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-sm">
+          Die Leiste unten zeigt ihre Reaktionen. Im Spiel schreibt Gemma sie zu jeder Idee neu. Hier sind es Beispielsätze.
+        </p>
+        <div>
+          <PixelButton variant="secondary" size="sm" onClick={() => setReacting((value) => !value)}>
+            {reacting ? "Ohne Reaktion zeigen" : "Beispiel-Reaktionen zeigen"}
+          </PixelButton>
+        </div>
+      </Section>
+
+      <PeopleBar reactions={reacting ? SAMPLE_REACTIONS : []} caption={reacting ? "Reaktionen auf: Mietendeckel (Beispiel)" : undefined} />
+      {introOpen && <IntroSlides onDone={() => setIntroOpen(false)} />}
 
       <FeedbackSheet
         open={sheet !== null}

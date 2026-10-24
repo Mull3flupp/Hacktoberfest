@@ -10,6 +10,7 @@ import type { ConceptId, LearningProgress } from "@/lib/game/types";
 import { validateWorld, worldProposalSchema } from "@/lib/simulation/state";
 import type { SignedWorld, SignedWorldProposal, WorldCommit, WorldState } from "@/lib/simulation/types";
 import { LearningPanel } from "./learning-panel";
+import { PeopleBar } from "./ui/PeopleBar";
 import { VoicePanel, type VoiceBridge } from "./voice-panel";
 import { CitizenVillage, FeedbackSheet, Gruender, MoodMeter, PixelButton, PixelCard, ProfessorIgel, ProgressBar, RichterFrosch, SceneCard, cn } from "./ui";
 import { AnalysisDetails, EffectChips, InstitutionNotes, PixelNotice, SpeakerNote, WorldMetrics, format } from "./world-panels";
@@ -302,6 +303,7 @@ export function OpenWorld() {
           <VoicePanel pixel bridge={voiceBridge} contextVersion={`${state.id}:${state.revision}:${proposal?.proposal.id ?? "none"}`} configured={voiceConfigured} onTranscript={(source, text) => { setTutorOpen(true); setMessages(previous => [...previous, { role: source === "user" ? "user" as const : "assistant" as const, text, source: "Sprachagent" }].slice(-24)); }} />
         </PixelCard>
       </div>
+      <PeopleBar reactions={proposal?.proposal.analysis.characterReactions ?? state.lastAnalysis?.characterReactions} caption={proposal ? "Reaktionen auf deine Vorschau" : state.lastAnalysis?.characterReactions?.length ? `Reaktionen auf: ${state.lastAnalysis.title}` : undefined} />
     </>}
 
     {screen === "balance" && state && <section className="space-y-6"><SpeakerNote>Du wolltest: „{state.setup.vision || "dein Land nach deinen Vorstellungen gestalten"}“ Wie weit bist du gekommen?</SpeakerNote><h2 className="font-pixel text-3xl">Was bleibt von deinem Kurs?</h2><PromiseTracks rows={promises} /><PixelCard tone="blue" className="space-y-5"><div className="flex items-center gap-3"><RichterFrosch bob={false} size={64} /><div><p className="font-pixel text-sm uppercase">Der Nachfolgetest</p><h3 className="font-pixel text-2xl">Und wenn jemand anderes regiert?</h3></div></div><p>Eine Person mit ganz anderen Zielen übernimmt dieselben Befugnisse. Welche deiner Regeln würden sie begrenzen?</p>

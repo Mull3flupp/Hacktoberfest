@@ -1,0 +1,245 @@
+/*
+ * Intro-Show (IntroSlides): bildschirmfüllende Pixel-Szene mit Textkarte.
+ * Eigene Klassen statt Tailwind, damit das Intro unabhängig vom Spiel-Layout gleich aussieht.
+ */
+
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 24px 16px 32px;
+  overflow: hidden;
+  background: #0e1330;
+  color: var(--px-ink);
+  font-family: var(--font-body), "Nunito", system-ui, sans-serif;
+}
+
+.intro button {
+  font: inherit;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.intro__scene {
+  position: absolute;
+  inset: 0;
+  animation: intro-fade 500ms steps(5, end);
+}
+
+.intro-scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.intro-scene rect {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+
+.intro__skip.intro__skip {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  color: var(--px-ink);
+  background: var(--px-paper);
+  border: var(--px-border) solid var(--px-ink);
+  box-shadow: 0 0 0 2px var(--px-paper);
+}
+
+.intro__card {
+  position: relative;
+  z-index: 1;
+  width: min(640px, 100%);
+  max-height: calc(100dvh - 90px);
+  overflow-y: auto;
+  padding: 20px 22px 14px;
+  background: var(--px-paper);
+  border: var(--px-border) solid var(--px-ink);
+  box-shadow: 0 var(--px-shadow) 0 var(--px-ink);
+  animation: intro-rise 360ms steps(6, end);
+}
+
+.intro__eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--px-purple);
+}
+
+.intro__title {
+  margin: 0 0 8px;
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  line-height: 1.1;
+}
+
+.intro__card--victory .intro__title {
+  color: var(--px-red);
+  animation: intro-pulse 0.8s steps(2, end) 3;
+}
+
+.intro__text {
+  margin: 0 0 12px;
+  font-size: 1.02rem;
+  line-height: 1.5;
+}
+
+.intro__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.intro .intro__button {
+  min-height: 46px;
+  margin-bottom: var(--px-shadow);
+  padding: 0 18px;
+  font-size: 1rem;
+  text-transform: uppercase;
+  color: #ffffff;
+  background: var(--px-green);
+  border: var(--px-border) solid var(--px-ink);
+  box-shadow: 0 var(--px-shadow) 0 var(--px-green-dark);
+}
+
+.intro .intro__button:active:not(:disabled) {
+  transform: translateY(var(--px-shadow));
+  box-shadow: none;
+}
+
+.intro .intro__button:focus-visible,
+.intro__skip:focus-visible {
+  outline: 3px solid var(--px-yellow);
+  outline-offset: 2px;
+}
+
+.intro .intro__button--secondary {
+  color: var(--px-ink);
+  background: var(--px-white);
+  box-shadow: 0 var(--px-shadow) 0 var(--px-gray-dark);
+}
+
+.intro .intro__button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.intro__dots {
+  display: flex;
+  gap: 6px;
+}
+
+.intro__dots span {
+  width: 10px;
+  height: 10px;
+  background: var(--px-white);
+  border: 2px solid var(--px-ink);
+}
+
+.intro__dots span.is-active {
+  background: var(--px-yellow);
+}
+
+.intro__note {
+  margin: 8px 0 0;
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+
+/* Die Figuren erscheinen nacheinander */
+.intro-people {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.intro-people li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  text-align: center;
+  animation: intro-pop-in 300ms steps(3, end) both;
+}
+
+.intro-people strong {
+  margin-top: 2px;
+  font-size: 0.72rem;
+  line-height: 1.1;
+}
+
+.intro-people small {
+  font-size: 0.62rem;
+  line-height: 1.15;
+  opacity: 0.75;
+}
+
+/* Konfetti beim Wahlsieg */
+.intro__confetti span {
+  position: absolute;
+  top: -12px;
+  width: 8px;
+  height: 8px;
+  background: var(--px-yellow);
+  animation: intro-confetti 2.6s steps(13, end) infinite;
+}
+
+.intro__confetti span:nth-child(3n) { background: var(--px-red); }
+.intro__confetti span:nth-child(3n + 1) { background: var(--px-blue); width: 6px; }
+.intro__confetti span:nth-child(4n) { background: var(--px-green); height: 6px; }
+
+/* Szenen-Animationen */
+.intro-twinkle { animation: intro-twinkle 1.6s steps(1, end) infinite; }
+.intro-fall { animation: intro-fall 2.8s steps(14, end) infinite; }
+.intro-grow { animation: intro-grow 1.2s steps(6, end) both; }
+.intro-drift { animation: intro-drift 6s steps(6, end) infinite alternate; }
+.intro-cheer { animation: intro-cheer 0.7s steps(1, end) infinite; }
+.intro-burst { opacity: 0; animation: intro-burst 2.4s steps(4, end) infinite; transform-origin: center; }
+.intro-flag { animation: intro-flag 0.9s steps(1, end) infinite; }
+
+@keyframes intro-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes intro-rise { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes intro-pop-in { from { transform: translateY(12px) scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes intro-pulse { 50% { transform: scale(1.06); } }
+@keyframes intro-twinkle { 50% { opacity: 0.2; } }
+@keyframes intro-fall { 0% { transform: translateY(0); opacity: 1; } 85% { transform: translateY(36px); opacity: 1; } 100% { transform: translateY(38px); opacity: 0; } }
+@keyframes intro-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes intro-drift { from { transform: translateX(0); } to { transform: translateX(8px); } }
+@keyframes intro-cheer { 50% { transform: translateY(-2px); } }
+@keyframes intro-burst { 0% { opacity: 0; } 15% { opacity: 1; } 60% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes intro-flag { 50% { transform: translateX(1px); } }
+@keyframes intro-confetti { from { transform: translateY(0); } to { transform: translateY(105vh); } }
+
+@media (max-width: 600px) {
+  .intro { padding: 12px 8px 16px; }
+  .intro__card { padding: 16px 14px 10px; }
+  .intro__text { font-size: 0.95rem; }
+  .intro-people { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .intro .intro__button { padding: 0 12px; font-size: 0.85rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro__scene, .intro__card, .intro-people li, .intro__card--victory .intro__title,
+  .intro-twinkle, .intro-fall, .intro-grow, .intro-drift, .intro-cheer, .intro-flag, .intro__confetti span { animation: none; }
+  .intro-burst { animation: none; opacity: 1; }
+  .intro__confetti { display: none; }
+}
+
+/* Deckt das Spiel ab, bis feststeht, ob das Intro läuft (verhindert kurzes Aufblitzen). */
+.intro-cover {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #0e1330;
+}

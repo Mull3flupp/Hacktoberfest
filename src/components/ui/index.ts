@@ -20,3 +20,6 @@ export {
   moodFromValue,
   type Mood,
 } from "./characters";
+export { PersonSprite } from "./people";
+export { PeopleBar, type PeopleBarProps } from "./PeopleBar";
+export { IntroSlides, type IntroSlidesProps } from "./IntroSlides";
