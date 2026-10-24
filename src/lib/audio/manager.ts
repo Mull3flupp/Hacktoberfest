@@ -1,6 +1,6 @@
 "use client";
 
-import { RANDOM_VOICE_COUNT, type VoiceKey } from "./voices";
+import { RANDOM_VOICE_COUNTS, type VoiceGender, type VoiceKey } from "./voices";
 
 /**
  * Zentrale Audiosteuerung im Browser: eine Sprachspur (nie überlappend), kurze Effekte
@@ -9,9 +9,10 @@ import { RANDOM_VOICE_COUNT, type VoiceKey } from "./voices";
  * läuft das Spiel unverändert weiter.
  */
 export type SoundEffect = "door-open" | "footsteps" | "gavel" | "decision" | "protest" | "learning";
+type Delivery = "neutral" | "expressive";
 
 const MUTE_KEY = "koenig-audio-muted";
-const NPC_VOICES_KEY = "koenig-npc-voices-v1";
+const NPC_VOICES_KEY = "koenig-npc-voices-v2";
 const MUSIC_VOLUME = 0.12;
 const MUSIC_DUCKED = 0.03;
 const EFFECT_VOLUME: Record<SoundEffect, number> = { "door-open": 0.5, footsteps: 0.35, gavel: 0.6, decision: 0.45, protest: 0.18, learning: 0.45 };
@@ -33,6 +34,9 @@ let npcVoicesLoaded = false;
 
 function assignedVoice(key: string): string {
   if (!key.startsWith("npc:")) return key;
+  const gender = /^npc:(male|female|neutral):/.exec(key)?.[1] as VoiceGender | undefined;
+  if (!gender) return key;
+  const count = RANDOM_VOICE_COUNTS[gender];
   if (!npcVoicesLoaded) {
     npcVoicesLoaded = true;
     try {
@@ -41,10 +45,10 @@ function assignedVoice(key: string): string {
     } catch { npcVoices = {}; }
   }
   let slot = npcVoices[key];
-  if (!Number.isInteger(slot) || slot < 0 || slot >= RANDOM_VOICE_COUNT) {
-    const used = new Set(Object.values(npcVoices).filter(value => Number.isInteger(value) && value >= 0 && value < RANDOM_VOICE_COUNT));
-    const unused = Array.from({ length: RANDOM_VOICE_COUNT }, (_, index) => index).filter(index => !used.has(index));
-    const choices = unused.length ? unused : Array.from({ length: RANDOM_VOICE_COUNT }, (_, index) => index);
+  if (!Number.isInteger(slot) || slot < 0 || slot >= count) {
+    const used = new Set(Object.entries(npcVoices).filter(([name, value]) => name.startsWith(`npc:${gender}:`) && Number.isInteger(value) && value >= 0 && value < count).map(([, value]) => value));
+    const unused = Array.from({ length: count }, (_, index) => index).filter(index => !used.has(index));
+    const choices = unused.length ? unused : Array.from({ length: count }, (_, index) => index);
     const draw = new Uint32Array(1);
     if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(draw);
     else draw[0] = Math.floor(Math.random() * 0x1_0000_0000);
@@ -54,7 +58,7 @@ function assignedVoice(key: string): string {
     if (keys.length > 100) delete npcVoices[keys[0]];
     try { localStorage.setItem(NPC_VOICES_KEY, JSON.stringify(npcVoices)); } catch {}
   }
-  return `pool:${slot}`;
+  return `pool:${gender}:${slot}`;
 }
 
 function readMuted() {
@@ -116,11 +120,11 @@ export function stopCurrentSpeech() {
   duck(false);
 }
 
-async function loadSpeech(voice: VoiceKey, text: string, signal: AbortSignal) {
-  const key = `${voice}\u0000${text}`;
+async function loadSpeech(voice: VoiceKey, text: string, delivery: Delivery, signal: AbortSignal) {
+  const key = `${voice}\u0000${delivery}\u0000${text}`;
   const cached = speechCache.get(key);
   if (cached) return cached;
-  const response = await fetch("/api/audio/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ voice, text }), signal });
+  const response = await fetch("/api/audio/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ voice, text, delivery }), signal });
   if (!response.ok) throw new Error("tts unavailable");
   const url = URL.createObjectURL(await response.blob());
   speechCache.set(key, url);
@@ -135,7 +139,7 @@ async function loadSpeech(voice: VoiceKey, text: string, signal: AbortSignal) {
  * Spricht einen Text mit der festen Stimme einer Figur. Vorherige Sprache stoppt.
  * Löst nach dem Ende (oder bei Abbruch/Fehler) auf; Fehler bleiben still, der Text steht ja da.
  */
-export async function speak(speaker: VoiceKey, text: string): Promise<void> {
+export async function speak(speaker: VoiceKey, text: string, delivery: Delivery = "neutral"): Promise<void> {
   stopCurrentSpeech();
   // Unbekannte Besucher ziehen ihre Stimme einmalig; feste Figuren behalten ihre Zuordnung.
   const voice = assignedVoice(speaker.replace(/[^\p{L}\p{N} :._'-]/gu, "").trim().slice(0, 80) || "npc");
@@ -145,7 +149,7 @@ export async function speak(speaker: VoiceKey, text: string): Promise<void> {
   const controller = new AbortController();
   speechAbort = controller;
   try {
-    const url = await loadSpeech(voice, clean, controller.signal);
+    const url = await loadSpeech(voice, clean, delivery, controller.signal);
     if (token !== speechToken) return;
     const audio = new Audio(url);
     speech = audio;
@@ -161,7 +165,7 @@ export async function speak(speaker: VoiceKey, text: string): Promise<void> {
   }
 }
 
-export const speakCharacter = speak;
+export const speakCharacter = (speaker: VoiceKey, text: string) => speak(speaker, text, "expressive");
 export const speakProfessor = (text: string) => speak("professor", text);
 
 /* ---- Mikrofon ---- */

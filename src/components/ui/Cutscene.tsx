@@ -6,7 +6,7 @@ import { voiceForVisitor } from "@/lib/audio/voices";
 import { getCharacter, type CharacterId, type VisitorLook } from "@/lib/simulation/characters";
 import type { ActorReaction, CharacterReaction, WorldAnalysis } from "@/lib/simulation/types";
 import { bodyFont, pixelFont } from "./fonts";
-import { OfficeBackground, OfficeDesk } from "./officeScene";
+import { OfficeBackground, OfficeDesk, pickSetting, type Setting } from "./officeScene";
 import { PixelSprite } from "./PixelSprite";
 import { characterSprite32, visitorSprite32, type Frame, type Mood } from "./sprites32";
 import "./theme.css";
@@ -26,34 +26,46 @@ export type CutsceneVisitor = {
   key: string;
   name: string;
   role: string;
+  gender?: ActorReaction["gender"];
   stance: Stance;
   quote: string;
   /** feste Bürgerfigur oder Besucher mit Aussehen und Gruppengröße */
   who: { character: CharacterId } | { look: VisitorLook; count: number };
 };
 
-const MAX_FIXED = 3;
+/** Pro Szene kommen 3–4 Personen oder Gruppen, jede mit einer eigenen Meinung. */
+const MAX_VISITORS = 4;
+const MAX_AFFECTED = 2;
 
 /**
- * Wählt die Besucher für eine Analyse: zuerst die direkt Betroffenen,
- * dann bis zu drei feste Figuren mit möglichst unterschiedlichen Haltungen.
+ * Wählt die Besucher für eine Analyse: höchstens zwei direkt Betroffene, dann feste Figuren,
+ * bevorzugt mit Haltungen, die noch fehlen. `seed` wechselt, welche Figuren bei gleicher Haltung kommen.
  */
-export function buildVisitors(analysis: Pick<WorldAnalysis, "reactions" | "characterReactions">): CutsceneVisitor[] {
-  const visitors: CutsceneVisitor[] = analysis.reactions.slice(0, 3).map((reaction, index) => ({
-    key: `actor${index}`, name: reaction.name, role: reaction.role, stance: reaction.stance, quote: reaction.quote,
+export function buildVisitors(analysis: Pick<WorldAnalysis, "reactions" | "characterReactions">, seed = 0): CutsceneVisitor[] {
+  const affected = analysis.reactions.map((reaction, index): CutsceneVisitor => ({
+    key: `actor${index}`, name: reaction.name, role: reaction.role, gender: reaction.gender, stance: reaction.stance, quote: reaction.quote,
     who: { look: reaction.look ?? "buerger", count: reaction.count ?? 1 },
   }));
+  const visitors = affected.slice(0, MAX_AFFECTED);
+  // Feste Figuren rotieren je nach Seed, damit nicht immer dieselben kommen.
   const fixed = analysis.characterReactions ?? [];
-  const picked: CharacterReaction[] = [];
-  for (const stance of ["oppose", "support", "concern", "mixed"] as Stance[]) {
-    const match = fixed.find((reaction) => reaction.stance === stance && !picked.includes(reaction));
-    if (match && picked.length < MAX_FIXED) picked.push(match);
-  }
-  for (const reaction of fixed) if (picked.length < MAX_FIXED && !picked.includes(reaction)) picked.push(reaction);
-  for (const reaction of picked) {
+  const offset = fixed.length ? Math.abs(Math.floor(seed)) % fixed.length : 0;
+  const pool: CharacterReaction[] = [...fixed.slice(offset), ...fixed.slice(0, offset)];
+  const toVisitor = (reaction: CharacterReaction): CutsceneVisitor | null => {
     const character = getCharacter(reaction.characterId);
-    if (character) visitors.push({ key: character.id, name: character.name, role: character.role, stance: reaction.stance, quote: reaction.quote, who: { character: character.id } });
+    return character ? { key: character.id, name: character.name, role: character.role, stance: reaction.stance, quote: reaction.quote, who: { character: character.id } } : null;
+  };
+  const take = (reaction: CharacterReaction) => { const visitor = toVisitor(reaction); if (visitor) visitors.push(visitor); pool.splice(pool.indexOf(reaction), 1); };
+  // Zuerst Haltungen ergänzen, die noch niemand vertritt, dann auffüllen.
+  for (const stance of ["oppose", "support", "concern", "mixed"] as Stance[]) {
+    if (visitors.length >= MAX_VISITORS) break;
+    if (visitors.some((visitor) => visitor.stance === stance)) continue;
+    const match = pool.find((reaction) => reaction.stance === stance);
+    if (match) take(match);
   }
+  while (visitors.length < MAX_VISITORS && pool.length) take(pool[0]);
+  // Falls kaum feste Figuren reagiert haben: weitere Betroffene nachholen.
+  for (const visitor of affected.slice(MAX_AFFECTED)) if (visitors.length < MAX_VISITORS) visitors.push(visitor);
   return visitors;
 }
 
@@ -120,6 +132,8 @@ export type CutsceneProps = {
   decision: string;
   /** „Deine Entscheidung“ oder „Die Zeit läuft“ */
   caption?: string;
+  /** Raum, Tageszeit und Uhrzeit; ohne Angabe zufällig */
+  setting?: Setting;
   onDone: () => void;
 };
 
@@ -129,28 +143,45 @@ type Phase = "title" | "waiting" | "walk" | "talk" | "final";
  * Zwischensequenz in Ego-Perspektive wie im Karrieremodus: Du sitzt am Schreibtisch,
  * die Tür geht auf und Besucher kommen nacheinander auf dich zu und sagen ihre Meinung.
  */
-export function Cutscene({ visitors: incoming, decision, caption = "Deine Entscheidung", onDone }: CutsceneProps) {
+export function Cutscene({ visitors: incoming, decision, caption = "Deine Entscheidung", setting: given, onDone }: CutsceneProps) {
+  const [randomSetting] = useState(() => pickSetting(Math.random() * 233280));
+  const setting = given ?? randomSetting;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const reduced = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  const visitors = incoming ?? [];
+  const [visitors, setVisitors] = useState<CutsceneVisitor[]>(incoming ?? []);
+  const incomingSignature = incoming?.map(visitor => `${visitor.key}:${visitor.quote}`).join("\u0000") ?? "";
   const afterTitle: Phase = incoming === null ? "waiting" : incoming.length ? "walk" : "final";
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>(reduced ? afterTitle : "title");
   const [arrived, setArrived] = useState(false);
   const [typed, setTyped] = useState(0);
   const current = visitors[index];
-  const initialVisitors = useRef(visitors);
   const spokenLine = current ? `${index}:${voiceForVisitor(current)}:${current.quote}` : "";
   const quote = current ? `„${current.quote}“` : "";
 
   useEffect(() => {
     const dialog = dialogRef.current;
     dialog?.showModal();
-    // Protestierende Gruppen bringen leise Geräuschkulisse mit.
-    const protest = initialVisitors.current.some((visitor) => memberCount(visitor) > 1 && visitor.stance === "oppose");
-    if (protest) playSoundEffect("protest", { loop: true });
     return () => { dialog?.close(); stopCurrentSpeech(); stopSoundEffect("protest"); };
   }, []);
+
+  // Nachgeladene Bürger kommen hinzu, ohne bereits sprechende Besucher auszutauschen.
+  useEffect(() => {
+    if (!incoming) return;
+    setVisitors(previous => {
+      if (!previous.length) return incoming;
+      const known = new Set(previous.map(visitor => visitor.key));
+      const additions = incoming.filter(visitor => !known.has(visitor.key));
+      return additions.length ? [...previous, ...additions].slice(0, MAX_VISITORS) : previous;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingSignature]);
+
+  const protest = visitors.some(visitor => memberCount(visitor) > 1 && visitor.stance === "oppose");
+  useEffect(() => {
+    if (protest) playSoundEffect("protest", { loop: true });
+    return () => stopSoundEffect("protest");
+  }, [protest]);
 
   // Kurze Einblendung von Ort und Uhrzeit
   useEffect(() => {
@@ -163,6 +194,13 @@ export function Cutscene({ visitors: incoming, decision, caption = "Deine Entsch
   useEffect(() => {
     if (phase === "waiting" && incoming) setPhase(incoming.length ? "walk" : "final");
   }, [phase, incoming]);
+
+  useEffect(() => {
+    if (phase === "final" && index + 1 < visitors.length) {
+      setIndex(index + 1);
+      setPhase("walk");
+    }
+  }, [phase, index, visitors.length]);
 
   // Tür auf, Besuch läuft von der Tür bis vor den Schreibtisch
   useEffect(() => {
@@ -219,8 +257,8 @@ export function Cutscene({ visitors: incoming, decision, caption = "Deine Entsch
 
   return (
     <dialog ref={dialogRef} className={`cutscene ${pixelFont.variable} ${bodyFont.variable}`} aria-label="Zwischensequenz: Besuch in deinem Büro" onCancel={event => { event.preventDefault(); onDone(); }}>
-      <div className={`cut-camera ${phase === "talk" ? "is-close" : ""}`}>
-        <OfficeBackground doorOpen={doorOpen} />
+      <div className={`cut-camera cut-camera--${setting.time} ${phase === "talk" ? "is-close" : ""}`}>
+        <OfficeBackground doorOpen={doorOpen} room={setting.room} time={setting.time} />
         {shown.map((visitor, position) => {
           const isCurrent = position === index && phase !== "final";
           const spot = phase === "final" ? finalSpots[position] : isCurrent ? (arrived || phase === "talk" ? AT_DESK : AT_DOOR) : WAITING[position % WAITING.length];
@@ -235,7 +273,7 @@ export function Cutscene({ visitors: incoming, decision, caption = "Deine Entsch
             </div>
           );
         })}
-        <OfficeDesk />
+        <OfficeDesk time={setting.time} />
       </div>
       <div className="cut-vignette" aria-hidden="true" />
 
@@ -246,8 +284,8 @@ export function Cutscene({ visitors: incoming, decision, caption = "Deine Entsch
 
       {phase === "title" && (
         <div className="cut-title" onClick={next}>
-          <p className="font-pixel cut-title__place">Büro der Regierung</p>
-          <p className="font-pixel cut-title__time">Montag, 9:14 Uhr</p>
+          <p className="font-pixel cut-title__place">{setting.title}</p>
+          <p className="cut-title__time px-num">{setting.when}</p>
         </div>
       )}
 

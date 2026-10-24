@@ -10,6 +10,8 @@ export interface WorldEffects {
 }
 export interface ActorReaction {
   name: string; role: string; stance: "support" | "concern" | "oppose" | "mixed"; quote: string;
+  /** Geschlecht der sprechenden Person; gemischte Gruppen können neutral sein. */
+  gender?: "male" | "female" | "neutral";
   /** Aussehen in der Zwischensequenz; fehlt bei älteren Analysen */
   look?: VisitorLook;
   /** Wie viele Personen gemeinsam auftreten (1–4) */
