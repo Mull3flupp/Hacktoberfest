@@ -46,6 +46,16 @@ Die Auswahlkarten nutzen native Radiofelder samt Pfeiltastensteuerung. Vor dem E
 
 Pixelify Sans und Nunito sind samt Lizenzen [lokal enthalten](src/components/ui/assets/fonts/README.md); der Build benötigt keinen externen Schriftendownload.
 
+## Intro und Bürgerstimmen
+
+Vor dem Spiel läuft einmal pro Browser-Tab das vierteilige Wahlabend-Intro. „Überspringen“, Escape und die Pfeiltasten funktionieren; erst danach wird die Spielansicht geöffnet. Unter [/?intro](http://localhost:3000/?intro) kannst du es erneut ansehen. Ein vorhandenes Land bleibt erhalten.
+
+Finn, Oma Gisela, Bauer Heinz, Lea, Mika, Karen und Konsti sind die sieben Originalfiguren aus PR #2. Namen, Beschreibungen und Sprites bleiben unverändert. Jede Figur erhält einen eigenen Gemma-System-Prompt aus ihrer Beschreibung und reagiert mit einer persönlichen, skeptischen Stimme auf die konkrete Maßnahme. Weltzustand, vorgeschlagene Folgen und ihre eigene letzte Reaktion liefern den Kontext. Die Leiste zeigt die Stimmen zuerst zur Vorschau und nach Bestätigung zum letzten Beschluss.
+
+Die Anbindung liegt in [character-reactions.ts](src/lib/server/character-reactions.ts), die Personas in [characters.ts](src/lib/simulation/characters.ts). Eine Analyse benötigt regulär einen Modellaufruf für die Weltfolgen und sieben separate, parallele Aufrufe für die Stimmen. Jede Stimme wird strikt validiert; ihre ID kommt vom Server. Bei vorübergehenden Anbieter- oder Formatfehlern wird nur die betroffene Stimme einmal erneut angefragt. Quoten- und Zugangsfehler werden nicht automatisch wiederholt. Ohne sieben gültige Stimmen wird keine neue Vorschau signiert und der bestätigte Stand bleibt unverändert.
+
+Die Bestätigung löst keine weiteren Modellaufrufe aus. Alle Stimmen sind Bestandteil der signierten Analyse und werden mit dem Spielstand gespeichert. Ältere Spielstände ohne `characterReactions` bleiben gültig; bis zur nächsten erfolgreichen Analyse zeigt die Leiste die klar zugeordneten Leerlauf-Sprüche der Figuren.
+
 ## Spielablauf
 
 1. Landesname, Vision, zwei Versprechen und Ausgangsverfassung wählen. Dieser Einstieg verwendet feste Ausgangsbedingungen.

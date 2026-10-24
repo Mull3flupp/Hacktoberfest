@@ -48,7 +48,8 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 ## Intro und Bürgerfiguren
 
 - **Intro:** `src/components/intro-gate.tsx` zeigt `IntroSlides` auf der Startseite einmal pro Browser-Tab. Mit `/?intro` läuft es erneut. Die Szenen sind in `introScenes.tsx` aus Rechtecken gezeichnet, ohne Bilddateien.
-- **Figuren:** Namen, Rollen und Charakterbeschreibungen stehen in `src/lib/simulation/characters.ts`. Gemma bekommt die Beschreibungen mit und schreibt zu jeder Analyse pro Figur einen Satz plus Haltung (`characterReactions`). Ältere Spielstände ohne diese Reaktionen bleiben gültig; die Leiste zeigt dann die Leerlauf-Sprüche.
+- **Figuren:** Namen, Rollen und die unveränderten Charakterbeschreibungen stehen in `src/lib/simulation/characters.ts`. `src/lib/server/character-reactions.ts` erzeugt daraus pro Figur einen eigenen System-Prompt und eine separate Gemma-Anfrage. Jede Stimme kennt die vorgeschlagenen Weltfolgen und ihre eigene letzte Reaktion. `characterReactions` wird mit der Vorschau signiert und nach Bestätigung im Weltzustand behalten. Ältere Spielstände ohne diese Reaktionen bleiben gültig; die Leiste zeigt dann die Leerlauf-Sprüche.
+- **Intro-Gate:** Solange das Intro läuft, wird die darunterliegende Spielansicht nicht geöffnet oder per Tastatur bedienbar. Nach Ende oder Überspringen wird ein gespeichertes Land wie bisher geladen.
 - PeopleBar und IntroSlides bringen ihre eigenen CSS-Dateien (`people.css`, `intro.css`) mit und funktionieren deshalb auch außerhalb von `.px-root`.
 
 ## Neutralität

@@ -6,7 +6,7 @@ import { analyzeWorld, readWorldSnapshot } from "../../../../lib/server/world-mo
 import { ApiError, errorResponse, jsonResponse, readJson } from "../../../../lib/server/http";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 const requestSchema = z.object({ snapshot: z.unknown(), decision: z.string().trim().min(1).max(1500), kind: z.enum(["decision", "advance"]).default("decision") }).strict();
 
 export async function POST(request: Request) {

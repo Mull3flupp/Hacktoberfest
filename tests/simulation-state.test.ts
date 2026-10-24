@@ -132,7 +132,7 @@ test("a missing signing key never falls back to an insecure shared secret", () =
   process.env.SIMULATION_SIGNING_KEY = "simulation-test-key-only-not-a-real-secret-2026";
 });
 
-test("the six fixed characters may react once each; older analyses without reactions stay valid", () => {
+test("the seven fixed characters may react once each; older analyses without reactions stay valid", () => {
   const reactions = [
     { characterId: "finance-bro", stance: "oppose", quote: "Das killt jeden Investment-Case." },
     { characterId: "oma", stance: "concern", quote: "Unter Schröder gab es so was nicht." },
