@@ -1,78 +1,91 @@
 # Wenn ich König von Deutschland wäre
 
-Eine politische Regierungssimulation: ein fiktives Land gründen, eine eigene Agenda verfolgen und mit den Folgen leben. Grundlage ist das [Project Pack](docs/project-pack.md), erweitert um eine acht Quartale lange Amtszeit mit konkurrierenden Anliegen, laufenden Projekten und reagierenden Interessengruppen. Die Spielschleife ist in [campaign-plan.md](campaign-plan.md) beschrieben.
+Eine offene politische Regierungssimulation: Gründe ein fiktives Land, formuliere eigene Beschlüsse und erlebe ihre Folgen. Nach dem geführten Verfassungseinstieg analysiert Gemma jede freie Entscheidung individuell – etwa „Ich will den Dönerpreis auf 2 € begrenzen“. Erst nach deiner ausdrücklichen Bestätigung werden die vorgeschlagenen Folgen übernommen.
+
+Der aktuelle Entwurf steht in [open-simulation-plan.md](open-simulation-plan.md). Das [Project Pack](docs/project-pack.md) dokumentiert die ursprüngliche Idee; der ältere Kampagnenmodus bleibt als Vergleichscode erhalten.
 
 ## Lokal starten
 
-Voraussetzung: Node.js 22 oder neuer, npm.
+Voraussetzung: Node.js 22 oder neuer, npm und ein funktionierender Gemma-Zugang.
 
 ```sh
 npm ci
+cp .env.example .env.local
+```
+
+In `.env.local` die Platzhalter durch eigene Werte ersetzen:
+
+```dotenv
+GEMMA_PROVIDER=google
+GEMMA_BASE_URL=https://generativelanguage.googleapis.com/v1beta
+GEMMA_MODEL=gemma-4-26b-a4b-it
+GEMMA_API_KEY=dein_google_ai_studio_schluessel
+SIMULATION_SIGNING_KEY=dein_dauerhafter_zufaelliger_signaturschluessel
+```
+
+Den Signaturschlüssel einmal mit `openssl rand -hex 32` erzeugen und dauerhaft behalten. Er muss nach Neustarts und zwischen Serverinstanzen gleich bleiben, damit gespeicherte Welten weiterhin gültig sind. Zugangsdaten bleiben in der lokalen bzw. Hosting-Umgebung und gehören nicht ins Repository.
+
+```sh
 npm run dev
 ```
 
-Öffnen: http://localhost:3000/. Ohne API-Schlüssel sind die komplette Amtszeit, Projekte, Krisen, Lernkarten und Nachfolgetest nutzbar. Der Tutor verwendet dann ausdrücklich hinterlegte Kabinettsnotizen. Eigene Anweisungen werden in diesem Modus per Schlüsselwortsuche passenden simulierten Beschlüssen zugeordnet.
+Öffnen: **http://127.0.0.1:3000/**. Nach Änderungen an Environment-Variablen den Server neu starten. Ohne Signaturschlüssel lässt sich kein Land gründen; ohne gültigen Modellzugang sind keine freien Folgenanalysen oder Tutorantworten möglich. Anbieterfehler erzeugen eine sichtbare Fehlermeldung und verändern den letzten bestätigten Spielstand nicht.
 
-Für einen Produktionslauf:
+Für einen Produktionslauf: `npm run build`, danach `npm start`.
 
-```sh
-npm run build
-npm start
-```
+## Spielablauf
 
-## Enthalten
+1. Landesname, Vision, zwei Versprechen und Ausgangsverfassung wählen. Dieser Einstieg verwendet feste Ausgangsbedingungen.
+2. Eine eigene Maßnahme eingeben. Gemma interpretiert sie im Kontext der bisherigen Welt und liefert Annahmen, Vorteile, Kosten, Risiken, Akteursreaktionen sowie sofortige und spätere Modellfolgen.
+3. Die signierte Vorschau prüfen und ausdrücklich bestätigen. Erst dann ändern sich Kennzahlen, Institutionen und Weltfakten; bereits angekündigte fällige Folgen treten zusätzlich ein.
+4. Frei weiterentscheiden oder Zeit verstreichen lassen. Auch der Zeitfortschritt wird vorab von Gemma analysiert und bestätigt.
 
-- Eigene Vision, zwei überprüfbare Regierungsversprechen und eine Verfassung mit unterschiedlichen Machtgrenzen.
-- Acht Quartale mit je zwei Beschlüssen. Mehrere Dossiers stehen gleichzeitig zur Wahl; nicht bearbeitete Krisen haben Folgen. Ein Quartal kann bewusst vorzeitig abgeschlossen werden.
-- Mehrstufige Projekte mit späteren Effekten, fiktive Pressestimmen und unterschiedliche Reaktionen von Bevölkerung, Wirtschaft und Zivilgesellschaft. Das Kabinett vertritt widersprüchliche Interessen.
-- Deterministische Regeln mit kanonischem Replay: vergangene Beschlüsse, tatsächlich vorhandene Institutionen und aktuelle Kennzahlen beeinflussen die Anliegen der nächsten Runde.
-- Eigene Anweisungen werden als Vorschläge zu aktuell verfügbaren Beschlüssen ausgearbeitet. Die Umsetzung erfordert immer eine sichtbare Bestätigung. Beliebige, nicht simulierte Maßnahmen werden nicht als ausgeführt behauptet.
-- Getrennte Werte für Staatskasse, Rückhalt, Wohnkosten, Wirtschaft und Umwelt sowie institutionelle Rechte und Machtkontrolle. Keine realen Geldbeträge oder Wahlprognosen, kein moralischer Gesamtscore.
-- Unterschiedliche Enden und persönliches Vermächtnis: Versprechen, Erfolge, Kosten und ein interaktiver Nachfolgetest auf Basis der wirklich geschaffenen Regeln.
-- Sechs Lernkarten mit Quellen, Verständnis- und Transferfragen, Wiederholung nach einer weiteren Entscheidung sowie nach 1/3/7 Tagen. Falsche Antworten kehren früher zurück.
-- Kampagne und Lernkartei in LocalStorage; nach einem Neuladen fortsetzen. Eine neue Amtszeit ersetzt den Kampagnenverlauf, behält aber die Lernkartei. Der alte Drei-Szenen-Spielstand bleibt unter seinem bisherigen Speicherschlüssel erhalten.
-- Text-Tutor sowie optionale Gemma- und ElevenLabs-Anbindung. Sprachvorschläge müssen sichtbar per Button bestätigt werden.
+Es gibt kein festes Rundenlimit, keine Beschlussquote pro Quartal und kein automatisches Spielende. Eine freiwillige Zwischenbilanz prüft Versprechen und Nachfolge, danach kannst du weiterregieren. Lernkarten, Texttutor und ein optionaler ElevenLabs-Sprachdialog begleiten die Simulation.
 
-## Gemma und Sprache aktivieren
+Kennzahlen und Akteure sind fiktiv. Ein nominaler Preis wie „2 €“ ist ein Beschluss innerhalb der Spielwelt, keine reale Marktprognose. Demokratische Werte und Menschenrechte sind der offengelegte Maßstab der Reflexion; persönliche Macht, Grundrechte und gesellschaftliche Ergebnisse bleiben getrennt sichtbar.
 
-`.env.example` als `.env.local` kopieren und die benötigten Werte lokal eintragen. Schlüssel niemals committen.
+## Modell, Speichern und Grenzen
 
-| Variable | Zweck |
-| --- | --- |
-| `OPENROUTER_API_KEY` | Gemma über OpenRouter aktivieren |
-| `GEMMA_MODEL` | Standard: `google/gemma-3-27b-it` |
-| `GEMMA_BASE_URL` | Optionaler OpenAI-kompatibler Gemma-Endpunkt, inklusive `/v1` |
-| `GEMMA_API_KEY` | Schlüssel für einen alternativen Veranstalter-Endpunkt |
-| `ELEVENLABS_API_KEY` | Serverseitiger ElevenLabs-Zugang |
-| `ELEVENLABS_AGENT_ID` | Privater, konfigurierter deutschsprachiger Agent |
+Der Server prüft die strukturierte Modellausgabe und begrenzt technisch unplausible Einzelsprünge. Die konkreten Folgen stammen aus Gemmas Analyse, nicht aus einem Optionskatalog. Es gibt im aktiven Modus keinen kuratierten Ersatz für ausgefallene Modellaufrufe.
 
-Nach Änderungen am Environment den Server neu starten. Die Einrichtung der vier Sprachwerkzeuge und ein Agenten-Prompt stehen in [docs/voice-agent.md](docs/voice-agent.md). Das in ElevenLabs gewählte Dialogmodell steuert das Gespräch; fachliche Fragen werden über das Werkzeug an Gemma weitergeleitet. Mikrofon und Sprache sind optional.
+HMAC-Signaturen schützen Weltzustand und Vorschläge vor Veränderungen im Browser. Eine Vorschau gilt zehn Minuten und ist an Welt-ID, Revision und den exakten Ausgangszustand gebunden. Die Bestätigung ruft kein weiteres Modell auf. Diese Integritätsprüfung ersetzt keine Benutzeranmeldung und verwaltet keinen gemeinsamen Mehrspieler-Weltstand.
 
-Echte Gemma-Antworten und Sprachgespräche sind erst mit gültigen Anbieterzugängen prüfbar. Ohne Zugang wird kein Anbietererfolg vorgetäuscht. Bei Ausfällen bleibt der Text-/Klickablauf mit kuratierten Erklärungen erhalten. Eine Aufnahme-/Scribe-/TTS-Alternative zur Live-Sprachsession ist in diesem ersten Prototyp noch nicht enthalten.
+Spielstand, Lernkartei und Entwurf liegen browsergebunden in LocalStorage unter der Version `koenig-open-world-v3`. Es gibt keine Datenbank und keine Synchronisation zwischen Geräten. Alte Prototyp-Spielstände werden nicht als neue Welt übernommen. Ein neues Land ersetzt den aktiven Weltstand und behält die Lernkartei.
+
+Das Gedächtnis ist begrenzt: Der Zustand hält höchstens 16 Chronikeinträge, 32 Weltfakten, 12 Nachrichten und 18 offene Folgen. Neue Modellaufrufe erhalten einen kompakten Ausschnitt der jüngsten Chronik plus Weltfakten und offene Folgen. Ältere Texte werden nicht vollständig archiviert; unbegrenztes Weiterspielen bedeutet kein unbegrenztes Modellgedächtnis.
 
 ## Aufbau und Schnittstellen
 
-Next.js App Router, React, TypeScript, Tailwind und Zod. Kein Konto, keine Datenbank, kein geräteübergreifendes Speichern.
+Next.js App Router, React, TypeScript, Tailwind und Zod.
 
 | Pfad | Aufgabe |
 | --- | --- |
-| `src/lib/campaign/engine.ts` | Regierungsrunden, Projekte, Krisen, Replay, Ziele und Vermächtnis |
-| `src/lib/campaign/content.ts` | Eigene Dossiers, Beschlüsse, Beraterstimmen und Modellfolgen |
-| `src/lib/game/engine.ts` | Ursprünglicher Drei-Szenen-Prototyp und gemeinsame Begriffskarten |
-| `src/lib/game/learning.ts` | Wiederholungsregeln der Lernkarten |
-| `src/data/*.json` | Kuratierte Szenen, Begriffe, Quellen und Fragen |
-| `src/lib/server/campaign-gemma.ts` | Kontextbezogene Kabinettsanalyse und kuratierter Fallback |
-| `src/lib/server/campaign-order.ts` | Freie Anweisung auf erlaubte aktuelle Beschlüsse abbilden |
-| `src/components/` | Austauschbare einfache Oberfläche und Sprachadapter |
-| `POST /api/campaign` | `{ state, command, revision }` → Zustand und unmittelbarer Spielbericht, ohne Modellwartezeit |
-| `POST /api/campaign/tutor` | `{ state, question, conceptId? }` → kontextbezogene Antwort, Begriffs-IDs und Quelle |
-| `POST /api/campaign/order` | `{ state, order }` → geprüfte Vorschläge aus den aktuellen Dossiers, noch keine Umsetzung |
-| `POST /api/voice-session` | Kurzlebiger WebRTC-Gesprächstoken; keine Schlüssel für den Browser |
-| `GET /api/health` | Konfigurierte Fähigkeiten ohne Zugangsdaten |
+| `src/components/open-world.tsx` | Aktive Oberfläche: Gründung, freie Entscheidung, Vorschau, Chronik und Zwischenbilanz |
+| `src/lib/simulation/types.ts` | Verträge für Weltzustand, Analyse und signierte Vorschläge |
+| `src/lib/simulation/state.ts` | Strikte Validierung, Ausgangszustand und Übernahme bestätigter Folgen |
+| `src/lib/server/simulation-signing.ts` | HMAC-Signaturen, Ablaufprüfung und Bindung an den Ausgangszustand |
+| `src/lib/server/world-model.ts` | Individuelle Folgenanalyse und Tutor mit kompaktem Weltkontext |
+| `src/lib/server/gemma-client.ts` | Serverseitiger Google-/OpenRouter-Aufruf und sichere Anbieterfehler |
+| `src/lib/game/learning.ts`, `src/data/concepts.json` | Sechs kuratierte Lernbegriffe, Quellen und Wiederholungsregeln |
 
-Das Backend rekonstruiert Kennzahlen und Institutionen aus dem geordneten Verlauf. Mitgeschickte Indizes sind nicht vertrauenswürdig. Nur Spielregeln ändern Werte; Modellantworten werden begrenzt und validiert. Revisionen und eine Sperre im Browser verhindern doppelte oder veraltete Bestätigungen innerhalb einer Sitzung. Das ist ein browsergebundener Prototyp, kein gemeinsamer Mehrspieler-Server.
+| Endpunkt | Anfrage → Antwort |
+| --- | --- |
+| `POST /api/simulation/start` | `{ setup }` → `{ state, signature }` |
+| `POST /api/simulation/analyze` | `{ snapshot, decision, kind? }` → `{ proposal, signature }`; `kind` ist `decision` oder `advance` |
+| `POST /api/simulation/commit` | `{ snapshot, analysis }` → `{ snapshot, appliedConsequences }`; `analysis` ist die vollständige signierte Vorschau |
+| `POST /api/simulation/tutor` | `{ snapshot, question, conceptId? }` → `{ answer, conceptIds, source: "gemma" }` |
+| `POST /api/voice-session` | Kurzlebiger WebRTC-Gesprächstoken für den Browser |
+| `GET /api/health` | Konfigurierte Anbieterfähigkeiten ohne Zugangsdaten |
 
-## Prüfen
+Die früheren Drei-Szenen- und Kampagnenmodule samt alten APIs bleiben für Vergleiche und Tests im Repository. Die Startseite verwendet `OpenWorld` und die `/api/simulation/*`-Routen.
+
+## Anbieter und Sprache
+
+Die Google-Anbindung nutzt die native Gemini API mit `x-goog-api-key`, Gemma 4 und minimalem Thinking. Alternativ sind OpenRouter oder ein OpenAI-kompatibler Veranstalter-Endpunkt über die Werte in [.env.example](.env.example) konfigurierbar. Ein verfügbares Modell und passende Anbieterberechtigungen sind erforderlich.
+
+Für Sprache zusätzlich `ELEVENLABS_API_KEY` und `ELEVENLABS_AGENT_ID` setzen. Die [Agenten-Anleitung](docs/voice-agent.md) beschreibt die vier Client Tools. Das ElevenLabs-Dialogmodell steuert das Gespräch; fachliche Antworten kommen über das Tutorwerkzeug von Gemma. Ein gesprochener Vorschlag füllt zunächst nur den Entwurf. Analyse und Bestätigung erfolgen sichtbar am Bildschirm. Sprache ist optional; freie Modellanalysen benötigen auch ohne Mikrofon einen Gemma-Zugang.
+
+## Prüfen und bereitstellen
 
 ```sh
 npm test
@@ -80,14 +93,8 @@ npm run typecheck
 npm run build
 ```
 
-Die Tests prüfen Kampagnenstrategien, Aktionsgrenzen, ignorierte Krisen, Projekte und Enden, kanonisches Replay, veraltete Befehle, die Anweisungsinterpretation, Lernintervalle und Anbieterfehler. Die 27 Wege des ursprünglichen Regelmoduls bleiben zusätzlich abgedeckt. Anbieterantworten sind gemockt.
+Tests prüfen freie Modellausgaben, Signaturen, veränderte und veraltete Vorschläge, verzögerte Folgen, begrenzten Kontext und Anbieterfehler. Anbieterantworten sind dabei gemockt; echte Modell- und Sprachaufrufe werden separat mit gültigen Zugängen geprüft. Die ursprünglichen Regeltests bleiben erhalten.
 
-Kurzer manueller Durchlauf: Agenda und Verfassung wählen → zwischen konkurrierenden Dossiers entscheiden → Projekt starten → weiteres Anliegen bearbeiten oder liegen lassen → Quartal abschließen → Presse und Projektfortschritt ansehen → Begriff ins Notizbuch übernehmen → bis zum Vermächtnis spielen. Zum Vergleich dieselbe Agenda mit anderen Prioritäten oder einer anderen Verfassung erneut spielen.
+Manueller Durchlauf: Land gründen → freie Maßnahme analysieren → Vorschau bestätigen → Folgen und Weltfakten ansehen → Zeitfortschritt bestätigen → Lernkarte beantworten → Zwischenbilanz öffnen → weiterregieren → Seite neu laden und fortsetzen.
 
-Inspiration für die stärkere Spielschleife ist [Eurocracy](https://eurocracy.xyz/): persönliche Agenda, begrenzte Amtszeit, Berater und spätere Konsequenzen. Inhalte, Figuren, Regeln und Gestaltung dieser App sind eigenständig; fremder Code und fremde Bilder wurden nicht übernommen.
-
-## Bereitstellung
-
-Als Next.js-Projekt in Vercel importierbar: Build `npm run build`, übrige Framework-Einstellungen automatisch. Benötigte Environment-Variablen in der Hosting-Umgebung eintragen. Sprachzugriff braucht HTTPS oder localhost. Es wurde noch keine öffentliche Bereitstellung und kein Demo-Video erstellt.
-
-Quellen und fiktive Modellannahmen sind getrennt. Demokratische Werte und Menschenrechte sind der offengelegte normative Maßstab; politische Präferenzen werden nicht als richtige oder falsche Lernantwort bewertet.
+Als Next.js-Projekt bei Vercel importierbar. Environment-Variablen einschließlich dauerhaftem Signaturschlüssel dort setzen; Sprachzugriff braucht HTTPS oder localhost. Eine öffentliche Bereitstellung und ein Demo-Video sind separate Arbeitsschritte.

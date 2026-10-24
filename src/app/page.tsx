@@ -1,5 +1,5 @@
-import { Cabinet } from "@/components/cabinet";
+import { OpenWorld } from "@/components/open-world";
 
 export default function Home() {
-  return <Cabinet />;
+  return <OpenWorld />;
 }

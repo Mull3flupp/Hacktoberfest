@@ -1,63 +1,61 @@
 # ElevenLabs-Sprachagent einrichten
 
-Die Regierungskampagne spielt ohne Sprachverbindung vollständig per Text und Klick. Du wählst Vision, Versprechen und Verfassung und regierst acht Quartale mit jeweils zwei Beschlüssen. Projekte brauchen Zeit, Gruppen reagieren unterschiedlich und unbehandelte Konflikte können eskalieren. Für echte Sprachgespräche braucht die App einen eingerichteten ElevenLabs-Agenten. Es werden keine Sprachfunktionen simuliert.
+Die aktive App ist eine offene Regierungssimulation mit frei formulierten Entscheidungen. Gemma analysiert neue Maßnahmen individuell; die Person prüft und bestätigt die Vorschau. Ein Sprachagent unterstützt diesen Ablauf, führt aber keine Maßnahmen selbstständig aus. Mikrofon und ElevenLabs sind optional; für freie Folgenanalysen und Tutorantworten bleibt ein echter Gemma-Zugang erforderlich.
 
-## Zugang und Gesprächsmodell
+## Zugang
 
-1. In ElevenLabs einen deutschsprachigen ElevenAgents-Agenten anlegen, WebRTC und Authentifizierung aktivieren.
-2. Serverumgebung setzen: `ELEVENLABS_API_KEY` und `ELEVENLABS_AGENT_ID`. Beide bleiben auf dem Server. Für fachliche Antworten zusätzlich Gemma konfigurieren, siehe README.
-3. Die unten genannten Client Tools exakt mit diesen Namen konfigurieren. Bei allen Tools **Wait for response** aktivieren. Besonders `ask_tutor` muss auf das Gemma-Ergebnis warten.
-4. Das zusätzliche, in ElevenLabs gewählte Dialogmodell steuert Gespräch und Werkzeuge. Die fachliche Auswertung kommt aus Gemma über `ask_tutor`. Das Gesprächsmodell im Demo-Video korrekt benennen; es ist nicht automatisch Gemma.
-5. Lokal unter `localhost` oder in einer HTTPS-Bereitstellung starten. Sprache beginnt erst nach Betätigen des Startbuttons und Mikrofonfreigabe.
+1. In ElevenLabs einen deutschsprachigen ElevenAgents-Agenten mit WebRTC und Authentifizierung einrichten.
+2. Serverseitig `ELEVENLABS_API_KEY` und `ELEVENLABS_AGENT_ID` setzen. Gemma und `SIMULATION_SIGNING_KEY` wie in der [README](../README.md) konfigurieren.
+3. Die vier Client Tools unten exakt mit diesen Namen und Parametern anlegen. Bei allen **Wait for response** aktivieren; `ask_tutor` muss auf die echte Gemma-Antwort warten.
+4. Die App unter localhost oder HTTPS öffnen. Das Gespräch startet erst nach Betätigen des Buttons und Mikrofonfreigabe.
 
-Das Backend ruft `GET https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=…` mit dem serverseitigen `xi-api-key` auf. Der Browser erhält ausschließlich den kurzlebigen `conversationToken`, keine Anbieterschlüssel. Bei fehlender Konfiguration liefert `/api/voice-session` HTTP 503, bei Anbieterfehlern HTTP 502; der Spielstand bleibt erhalten.
+Das Backend beschafft über `GET https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=…` einen kurzlebigen WebRTC-Zugang. Der Browser erhält den `conversationToken`, keine Anbieterschlüssel. Fehlende ElevenLabs-Konfiguration liefert HTTP 503, Anbieterfehler HTTP 502. Gemma-Fehler werden ebenfalls als Fehler sichtbar, ohne fachliche Ersatzantwort zu erfinden oder den bestätigten Spielstand zu verändern.
+
+Das in ElevenLabs gewählte zusätzliche Dialogmodell steuert Gespräch und Werkzeuge. Die fachliche Analyse stammt über `ask_tutor` von Gemma. Diese beiden Rollen auch in einer Demo korrekt benennen.
 
 ## Client Tools
 
 | Name | Parameter | Verhalten |
 | --- | --- | --- |
-| `get_game_context` | keine | Aktuellen Kampagnenstand mit Agenda, Quartal, verbleibenden Aktionen, Gruppen, Projekten, Nachrichten, Revision und aktuell gültigen Anliegen/Optionen lesen. Vor jeder Entscheidung erneut aufrufen. |
-| `ask_tutor` | `question`: String | Die Frage über `/api/campaign/tutor` an Gemma bzw. die als solche benannte regelbasierte Kabinettsnotiz senden. Das Ergebnis abwarten und sinngemäß wiedergeben. Keine Kennzahlen verändern. |
-| `propose_decision` | `optionId`: String, `revision`: Integer | Eine aktuell gültige Option mit ihrer vollständigen ID `cardId:suffix` für genau diese Revision sichtbar vorschlagen. Der Beschluss erfolgt erst über den Bestätigungsbutton und `/api/campaign`. |
-| `remember_concept` | `conceptId`: String | Eine der sechs erlaubten Begriffskarten in der lokalen Lernkartei speichern. |
+| `get_game_context` | keine | Aktuelle Welt mit Revision, Agenda, Institutionen, Gruppen, Fakten, anstehenden Folgen und gegebenenfalls einer offenen Vorschau lesen. Vor jeder spielbezogenen Aktion erneut aufrufen. |
+| `ask_tutor` | `question`: String | Frage über `/api/simulation/tutor` an Gemma senden und die Antwort abwarten. Verändert den Zustand nicht. |
+| `propose_decision` | `optionId`: String, `revision`: Integer | `optionId` enthält jetzt den vollständigen frei formulierten Beschlusstext mit 1–1500 Zeichen. Das Werkzeug füllt nur das Entwurfsfeld. Die Person klickt danach „Folgen analysieren“, prüft Gemmas Vorschau und bestätigt sie ausdrücklich. |
+| `remember_concept` | `conceptId`: String | Einen der sechs kuratierten Begriffe in der lokalen Lernkartei merken. |
 
-Die Anliegen und Optionen wechseln mit Quartal, Verfassung, bisherigen Beschlüssen und Krisen. Es gibt keine feste Reihenfolge von drei Fragen. Option-IDs sind global eindeutig im Format `cardId:suffix`; immer exakt die Werte aus dem aktuellen Kontext verwenden. Einen Vorschlag nicht über eine alte Revision bestätigen. Zeitfortschritt erfolgt ausdrücklich über den Quartalsbutton; der Agent darf ihn nicht als bereits erfolgt darstellen.
-
-Freie politische Aufträge können über `/api/campaign/order` in passende vorhandene Beschlüsse übersetzt werden. Dieser Endpunkt liefert ausschließlich Vorschläge, keine neuen Simulationsregeln. Gemma und der deterministische Themenabgleich dürfen keine frei erfundene Maßnahme als simuliert ausgeben. Passt keine vorhandene Maßnahme, benennt die App die Grenze und zeigt ehrliche Alternativen.
+Der Parametername `optionId` bleibt für die bestehende SDK-Schnittstelle erhalten; er bezeichnet im aktiven Modus keine feste Dossieroption. Alternativ kann `suggestion:0` auf den ersten aktuellen Anschlussvorschlag verweisen. Freie eigene Formulierungen sind der normale Weg. Revisionen stammen immer aus dem frisch gelesenen Kontext.
 
 Gültige Begriffs-IDs: `social-contract`, `popular-sovereignty`, `separation-of-powers`, `rule-of-law`, `minority-rights`, `peaceful-transfer`.
 
-## Empfohlener Agenten-Prompt
+## Agenten-Prompt
 
 ```text
 Du begleitest das deutschsprachige politische Lernspiel „Wenn ich König von Deutschland wäre“.
-Lies vor jeder spielbezogenen Aktion get_game_context. Der Browser ist die Quelle des aktuellen Zustands.
-Begleite eine laufende Regierungskampagne mit eigener Vision, zwei Versprechen und acht Quartalen.
-Berücksichtige Budget, verbleibende Beschlüsse, laufende Projekte und die unterschiedlichen Interessengruppen.
-Ein Projektabschluss braucht Zeitfortschritt; ein Beschluss ist nicht automatisch schon ein abgeschlossenes Projekt.
-Leite Theoriefragen und fachliche Bewertungen an ask_tutor weiter und warte auf das Ergebnis.
-Benenne eine kuratierte Antwort als regelbasierte Kabinettsnotiz, falls Gemma gerade nicht verfügbar ist.
-Besprich eigene politische Ideen als Vorschläge. Leite nur auf vorhandene Optionen über und benenne Grenzen offen.
-Erfinde keine Kennzahlen, Institutionen, Optionen, Quellen oder historischen Prognosen.
-Nutze nur die vollständigen optionId- und conceptId-Werte des aktuellen Kontexts.
-Wenn die Person eine Entscheidung treffen möchte, rufe propose_decision mit optionId und aktueller revision auf.
-Sage danach: „Der Vorschlag ist markiert. Bitte bestätige ihn mit dem Button.“
-Behaupte nie, eine vorgeschlagene Entscheidung sei schon ausgeführt.
-Zum Speichern einer Lernkarte verwende remember_concept.
-Beachte Aktualisierungen aus sendContextualUpdate und lies bei Unsicherheit den Kontext erneut.
-Trenne persönliche Macht, gesellschaftliche Ergebnisse und Grundrechtsschutz.
-Demokratische Werte und Menschenrechte sind der offengelegte normative Maßstab dieses Spiels.
-Das Nachfolgeszenario ist ein Gedankenexperiment, keine historische Vorhersage.
-Sprich kurz und verständlich und stelle höchstens eine Rückfrage auf einmal.
+Lies vor spielbezogenen Aktionen get_game_context. Die Welt ist offen: Entscheidungen sind frei formulierbar, es gibt keinen festen Optionskatalog und kein festes Spielende.
+Berücksichtige aktuelle Institutionen, Gruppen, Weltfakten, angekündigte Folgen und die Revision.
+Leite fachliche Fragen und Bewertungen an ask_tutor weiter und warte auf die Gemma-Antwort.
+Bei einem Werkzeug- oder Anbieterfehler benenne den Fehler. Erfinde keine Gemma-Antwort und keine bereits ausgeführten Maßnahmen.
+Möchte die Person etwas beschließen, rufe propose_decision auf. Übergib den vollständigen Beschlusstext als optionId und die aktuelle revision.
+Sage danach: „Dein Vorschlag steht im Entwurf. Bitte klicke auf Folgen analysieren, prüfe die Vorschau und bestätige sie am Bildschirm.“
+Das Werkzeug füllt nur den Text. Es analysiert, unterschreibt und bestätigt keine Maßnahme.
+Zum Merken einer Lernkarte verwende remember_concept mit einer bekannten Begriffs-ID.
+Beachte sendContextualUpdate und lies bei Unsicherheit den aktuellen Kontext erneut.
+Kennzahlen und nominale Preise sind fiktiv. Gib sie nicht als reale Prognosen aus.
+Trenne persönliche Macht, gesellschaftliche Ergebnisse und institutionellen Grundrechtsschutz.
+Demokratische Werte und Menschenrechte sind der offengelegte Maßstab der Reflexion.
+Eine Zwischenbilanz oder ein Nachfolgetest beendet das Spiel nicht.
+Sprich knapp und verständlich und stelle höchstens eine Rückfrage auf einmal.
 ```
 
 ## Prüfung
 
-Im Browser eine Kampagne gründen und eine Session starten. Eine eigene Regierungsidee besprechen, nach einem tatsächlichen Zielkonflikt fragen, den passenden Lernbegriff merken, eine gültige Option vorschlagen lassen und per Button bestätigen. Zeit verstreichen lassen und nach Projektfortschritt oder einer veränderten Gruppenreaktion fragen. Während einer Session zusätzlich per Klick spielen und prüfen, ob der Agent den aktualisierten Kontext kennt. Sitzung beenden und ohne Sprache weiterspielen. Ohne echte Zugangsdaten sind nur die Token- und Fehlerpfade mit gemockten Anbieterantworten prüfbar.
+Land gründen → Sprachgespräch starten → eine eigene Maßnahme vorschlagen lassen → prüfen, dass zunächst nur der Entwurf gefüllt wird → Analyse und Bestätigung am Bildschirm ausführen → nach den tatsächlichen Folgen fragen → passenden Lernbegriff merken. Zusätzlich per Klick weiterspielen und prüfen, ob der Agent den aktualisierten Kontext kennt. Sitzung beenden und ohne Sprache weiterregieren.
+
+Echte Sprachverbindungen müssen mit einem konfigurierten Agenten geprüft werden; gemockte Token-Tests belegen keinen vollständigen Sprachdialog.
 
 ## Dokumentation
 
 - [ElevenLabs React SDK](https://elevenlabs.io/docs/eleven-agents/libraries/react)
 - [Client Tools und Wait for response](https://elevenlabs.io/docs/eleven-agents/customization/tools/client-tools)
 - [WebRTC-Gesprächstoken](https://elevenlabs.io/docs/api-reference/conversations/get-webrtc-token)
-- [OpenRouter API und Antwortformat](https://openrouter.ai/docs/api_reference/overview)
+- [Google Gemini API: Schlüssel](https://ai.google.dev/gemini-api/docs/api-key)
+- [Gemma auf der Gemini API](https://ai.google.dev/gemma/docs/core/gemma_on_gemini_api)
