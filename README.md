@@ -38,7 +38,9 @@ Für einen Produktionslauf: `npm run build`, danach `npm start`.
 
 ## Pixel-UI im Spiel
 
-Die [Startseite](http://localhost:3000/) verwendet die Pixel-Komponenten aus PR #1 direkt im spielbaren Ablauf: Gründung, freie Entscheidung, Folgenvorschau, Bürgerdorf, Kennzahlen, Institutionen, Nachrichten, Chronik, Zwischenbilanz und Lernkarten. Figuren und Anzeigen reagieren auf den echten bestätigten Weltzustand. Die Vorschau übernimmt Modellfolgen erst nach deiner Bestätigung; politische Entscheidungen bekommen eine neutrale Folgenrückmeldung. Richtig/falsch erscheint nur bei Wissensfragen.
+Die [Startseite](http://localhost:3000/) verwendet die Pixel-Komponenten aus PR #1 direkt im spielbaren Ablauf: Gründung, freie Entscheidung, Folgenvorschau, Bürgerstimmen, Kennzahlen, Institutionen, Nachrichten, Chronik, Bilanz und Lernkarten. Figuren und Anzeigen reagieren auf den echten bestätigten Weltzustand. Die Vorschau übernimmt Modellfolgen erst nach deiner Bestätigung; politische Entscheidungen bekommen eine neutrale Folgenrückmeldung. Richtig/falsch erscheint nur bei Wissensfragen.
+
+Das Dashboard konzentriert sich auf Entscheidung, Kennzahlen und Bürgerstimmen. Versprechen, Verfassung, Nachrichten und zusätzliche Ideen lassen sich bei Bedarf aufklappen; ausstehende Folgen erscheinen nur, wenn es welche gibt. Die Stimmen stehen direkt beim Beschluss und wechseln erst nach einem Klick auf eine Figur. Erläuterungen zu Modellwerten und Speicherung stehen gesammelt unter „Über das Spiel“; ein nicht eingerichteter Sprachmodus wird im Spiel nicht angezeigt.
 
 Die [UI-Demo](http://localhost:3000/ui-demo/) bleibt als Komponentenübersicht mit Beispieldaten erreichbar. Theme und Schriften werden im jeweiligen Seiteneinstieg geladen; [pixel-game.css](src/components/pixel-game.css) ergänzt die Spielansicht, [world-panels.tsx](src/components/world-panels.tsx) verbindet die Library mit Weltzustand und Modellausgabe. Die Komponenten sind in [src/components/ui/README.md](src/components/ui/README.md) dokumentiert.
 

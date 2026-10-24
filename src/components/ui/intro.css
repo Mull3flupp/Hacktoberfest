@@ -148,12 +148,6 @@
   background: var(--px-yellow);
 }
 
-.intro__note {
-  margin: 8px 0 0;
-  font-size: 0.72rem;
-  opacity: 0.7;
-}
-
 /* Die Figuren erscheinen nacheinander */
 .intro-people {
   display: grid;

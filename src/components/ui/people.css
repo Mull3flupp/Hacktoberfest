@@ -4,19 +4,13 @@
  */
 
 .people-bar {
-  position: sticky;
-  bottom: 0;
-  z-index: 20;
-  margin: 28px auto 0;
-  max-width: 1100px;
-  /* Das Layout richtet sich nach der Breite der Leiste selbst, nicht nach dem Fenster */
+  margin: 0;
+  min-width: 0;
   container-type: inline-size;
   padding: 10px 14px 6px;
   background: var(--px-paper);
   color: var(--px-ink);
-  border: var(--px-border) solid var(--px-ink);
-  border-bottom: none;
-  box-shadow: 0 calc(-1 * var(--px-shadow)) 0 rgba(27, 27, 47, 0.12);
+  border: 2px solid var(--px-ink);
   font-family: var(--font-body), "Nunito", system-ui, sans-serif;
 }
 
@@ -36,7 +30,8 @@
 
 .people-bar__caption {
   font-size: 0.8rem;
-  text-transform: uppercase;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .people-bar .people-bar__toggle {
@@ -51,8 +46,7 @@
   margin: 8px 0 12px;
   padding: 8px 12px;
   background: var(--px-white);
-  border: var(--px-border) solid var(--px-ink);
-  animation: people-pop 200ms steps(3, end);
+  border: 2px solid var(--px-ink);
 }
 
 /* Sprechblasen-Spitze */
@@ -160,75 +154,16 @@
 .people-stance--oppose { background: var(--px-purple-light); }
 .people-stance--mixed { background: var(--px-white); }
 
-/* Körpersprache: Zustimmung hüpft, Widerspruch schüttelt den Kopf, Bedenken wackeln */
-.people-person--support .people-person__sprite { animation: people-hop 0.9s steps(1, end) infinite; }
-.people-person--oppose .people-person__sprite { animation: people-shake 0.6s steps(1, end) infinite; }
-.people-person--concern .people-person__sprite,
-.people-person--mixed .people-person__sprite { animation: people-tilt 1.4s steps(1, end) infinite; }
-
-@keyframes people-hop {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-12%); }
-}
-
-@keyframes people-shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-6%); }
-  75% { transform: translateX(6%); }
-}
-
-@keyframes people-tilt {
-  0%, 100% { transform: rotate(0); }
-  50% { transform: rotate(-6deg); }
-}
-
-@keyframes people-pop {
-  from { transform: scale(0.92); opacity: 0.4; }
-  to { transform: scale(1); opacity: 1; }
-}
-
-/* Breite Leiste: Figuren links, Sprechblase rechts, damit die Leiste flach bleibt */
-@container (min-width: 820px) {
-  .people-bar__body {
-    display: grid;
-    grid-template-columns: minmax(0, 500px) minmax(0, 1fr);
-    align-items: center;
-    gap: 18px;
-  }
-  .people-bar__row { order: -1; margin-top: 6px; }
-  .people-bar .people-person__sprite { width: 48px; height: 48px; }
-  .people-bar__bubble { margin: 6px 0 0; }
-  .people-bar__bubble::after {
-    left: -12px;
-    top: calc(50% - 6px);
-    bottom: auto;
-    border-right: none;
-    border-top: var(--px-border) solid var(--px-ink);
-    border-bottom: none;
-    border-left: var(--px-border) solid var(--px-ink);
-    transform: rotate(-45deg) translate(4px, 4px);
-  }
-}
-
 .people-bar--collapsed {
   padding-bottom: 10px;
 }
 
 @media (max-width: 600px) {
-  .people-bar { padding: 8px 6px 4px; margin-top: 20px; }
+  .people-bar { padding: 8px 6px 4px; }
 }
 
-/* Schmale Leiste (Handy, schmale Spalten): kleinere Figuren */
 @container (max-width: 520px) {
   .people-bar .people-person__sprite { width: 40px; height: 40px; }
   .people-person__name { font-size: 0.6rem; }
   .people-bar__bubble p { font-size: 0.85rem; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .people-bar__bubble,
-  .people-person--support .people-person__sprite,
-  .people-person--oppose .people-person__sprite,
-  .people-person--concern .people-person__sprite,
-  .people-person--mixed .people-person__sprite { animation: none; }
 }

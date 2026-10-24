@@ -22,7 +22,7 @@ Die alten Grundstile in `globals.css` liegen in `@layer base`, damit Tailwind-Ut
 
 `SceneCard` verwendet echte Radiofelder mit gemeinsamer Gruppe und Pfeiltastensteuerung. `ProgressBar` kann auch anteilige Segmente für Versprechen darstellen. `InstitutionBadge` kennt zusätzlich `nicht gesichert`, damit fehlende Sicherungen nicht als ausgesetzte Institutionen behauptet werden. `cn` kombiniert Klassen mit `clsx` und `tailwind-merge`, sodass individuelle Größen und Varianten zuverlässig überschrieben werden können.
 
-Im Spiel laufen die Figuren ohne dauerhafte Animation. Der Mikrofonknopf zeigt den realen Gesprächszustand; eine fehlende Sprachkonfiguration wird als nicht eingerichtet angezeigt.
+Im Spiel laufen die Figuren ohne dauerhafte Animation. Bürgerstimmen werden gezielt per Klick ausgewählt und stehen beim Beschluss, ohne andere Inhalte zu überlagern. Zusätzliche Informationen verwenden native `details`-Elemente. Der Mikrofonknopf zeigt den realen Gesprächszustand und erscheint im geöffneten Tutor nur bei eingerichteter Sprachverbindung.
 
 Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/README.md) und werden über `next/font/local` geladen. Beim Build ist kein Google-Fonts-Zugriff nötig.
 
@@ -42,7 +42,7 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 | `MicButton` | Mikrofon-Button, nur Darstellung (`idle`, `recording`, `processing`, `unavailable`) |
 | `ProfessorIgel`, `Gruender`, `RichterFrosch`, `CitizenBlob`, `GroupBlob` | Figuren als 16×16-Sprites |
 | `PersonSprite` | Die sieben festen Bürgerfiguren (Finn, Oma Gisela, Bauer Heinz, Lea, Mika, Karen, Konsti) |
-| `PeopleBar` | Leiste unten im Spiel: die Bürgerfiguren mit Sprechblase und Haltung (+ dafür, − dagegen, ? Bedenken, ~ zwiespältig) |
+| `PeopleBar` | Bürgerfiguren beim Beschluss mit auswählbarer Sprechblase und Haltung (+ dafür, − dagegen, ? Bedenken, ~ zwiespältig) |
 | `IntroSlides` | Durchklickbare Intro-Show mit animierten Pixel-Szenen, endet mit „Du wurdest gewählt!“ |
 | `Cutscene`, `buildVisitors` | Zwischensequenz in Ego-Perspektive: Du sitzt am Schreibtisch, Betroffene und feste Figuren kommen durch die Tür auf dich zu und sagen ihre Meinung. Raum und Tisch in `officeScene.tsx` |
 | `VisitorSprite` | Besucherfiguren für die Zwischensequenz: `imbiss`, `studierende`, `handwerk`, `business`, `senioren`, `familie`, `verwaltung`, `buerger` |
@@ -58,6 +58,7 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 ## Zwischensequenz
 
 - Startet im Spiel automatisch, sobald nach „Folgen analysieren“ eine Vorschau da ist (`open-world.tsx`, `cutsceneFor`). „Überspringen“ oder Escape führt direkt zur Vorschau.
+- Die Szene verwendet einen nativen modalen Dialog: Das Dashboard bleibt währenddessen per Tastatur und Maus gesperrt. Enter auf „Überspringen“ beendet die Szene direkt.
 - `buildVisitors` nimmt zuerst bis zu drei direkt Betroffene aus `analysis.reactions` (Gemma wählt dafür `look` und `count` 1–4) und danach bis zu drei feste Figuren mit möglichst unterschiedlicher Haltung.
 - Unbekannte `look`-Werte oder doppelte Figuren aus der KI-Antwort werden aussortiert, statt die ganze Analyse abzulehnen.
 - In `/ui-demo` lässt sich die Szene mit Beispielsätzen zum Dönerpreis abspielen.

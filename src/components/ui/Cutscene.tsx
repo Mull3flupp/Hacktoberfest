@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { getCharacter, type CharacterId, type VisitorLook } from "@/lib/simulation/characters";
 import type { ActorReaction, CharacterReaction, WorldAnalysis } from "@/lib/simulation/types";
 import { bodyFont, pixelFont } from "./fonts";
@@ -127,6 +127,7 @@ type Phase = "title" | "walk" | "talk" | "final";
  * die Tür geht auf und Besucher kommen nacheinander auf dich zu und sagen ihre Meinung.
  */
 export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", onDone }: CutsceneProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const reduced = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>(reduced ? (visitors.length ? "walk" : "final") : "title");
@@ -134,6 +135,12 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
   const [typed, setTyped] = useState(0);
   const current = visitors[index];
   const quote = current ? `„${current.quote}“` : "";
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
 
   // Kurze Einblendung von Ort und Uhrzeit
   useEffect(() => {
@@ -170,6 +177,7 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
+      if ((event.key === "Enter" || event.key === " ") && event.target instanceof Element && event.target.closest("button")) return;
       if (event.key === "ArrowRight" || event.key === "Enter" || event.key === " ") { event.preventDefault(); next(); }
       else if (event.key === "Escape") onDone();
     }
@@ -183,7 +191,7 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
   const tally = (["support", "oppose", "concern", "mixed"] as Stance[]).map((stance) => [stance, visitors.filter((visitor) => visitor.stance === stance).length] as const).filter(([, count]) => count > 0);
 
   return (
-    <div className={`cutscene ${pixelFont.variable} ${bodyFont.variable}`} role="dialog" aria-modal="true" aria-label="Zwischensequenz: Besuch in deinem Büro">
+    <dialog ref={dialogRef} className={`cutscene ${pixelFont.variable} ${bodyFont.variable}`} aria-label="Zwischensequenz: Besuch in deinem Büro" onCancel={event => { event.preventDefault(); onDone(); }}>
       <div className={`cut-camera ${phase === "talk" ? "is-close" : ""}`}>
         <OfficeBackground doorOpen={doorOpen} />
         {shown.map((visitor, position) => {
@@ -206,7 +214,7 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
 
       <div className="cut-hud">
         <span className="font-pixel cut-hud__place"><span className="cut-rec" aria-hidden="true">●</span> {caption}: <span className="cut-hud__decision">{decision}</span></span>
-        <button type="button" className="cut-skip font-pixel" onClick={onDone}>Überspringen ▸▸</button>
+        <button type="button" className="cut-skip font-pixel" onClick={onDone} autoFocus>Überspringen ▸▸</button>
       </div>
 
       {phase === "title" && (
@@ -220,10 +228,8 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
         <div className="cut-dialog" aria-live="polite">
           {phase === "final" ? (
             <div className="cut-dialog__body">
-              <p className="font-pixel cut-dialog__eyebrow">Alle Stimmen gehört</p>
-              <h2 className="font-pixel cut-dialog__headline">Jetzt wägst du ab.</h2>
+              <h2 className="font-pixel cut-dialog__headline">Reaktionen</h2>
               {tally.length > 0 && <p className="cut-dialog__tally">{tally.map(([stance, count]) => <span key={stance} className={`cut-stance cut-stance--${stance}`}>{count}× {STANCES[stance].label}</span>)}</p>}
-              <p className="cut-dialog__text">Jede Perspektive hat ihre Gründe, und keine Mehrheit in deinem Büro macht eine Entscheidung automatisch richtig. Was ist dir wichtiger, und wen nimmst du dafür in Kauf?</p>
             </div>
           ) : current && (
             <>
@@ -245,6 +251,6 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
           </div>
         </div>
       )}
-    </div>
+    </dialog>
   );
 }
