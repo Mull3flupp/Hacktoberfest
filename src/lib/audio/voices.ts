@@ -28,18 +28,22 @@ export const VOICES = {
 /** Stimmen für dynamisch erzeugte Figuren ohne feste Zuordnung (dürfen sich wiederholen). */
 const POOL = ["8dEUmyPMdDdK91vboYih", "l7kNoIfnJKPg7779LI2t", "AaOhDHYJ1XLZk74lXhdE", "fs2OqxduwXgp9foh2xjK", "10NkTYmU7tSz3Kkl3Lex", "WQP7cQUF5aAS6Axh5yaa", "BFd5oBc2DDna33pSi4Gf", "QtY3JBOUKEB5xzrRfOKc", "dvbL7qkNGZY1IqPGZAjM"];
 
-/** Sprecherschlüssel: feste Figur, Besuchertyp oder beliebiger Name einer zufälligen Figur. */
+/** Sprecherschlüssel: feste Figur oder eine zufällig zugewiesene Besucher-Stimme. */
 export type VoiceKey = string;
 
-export function voiceForVisitor(who: { character: CharacterId } | { look: VisitorLook }): VoiceKey {
-  return "character" in who ? who.character : `look:${who.look}`;
+export function voiceForVisitor(visitor: { name: string; who: { character: CharacterId } | { look: VisitorLook } }): VoiceKey {
+  return "character" in visitor.who ? visitor.who.character : `npc:${visitor.who.look}:${visitor.name}`;
 }
 
 export const isVoiceKey = (value: string) => /^[\p{L}\p{N} :._'-]{1,80}$/u.test(value);
+export const RANDOM_VOICE_COUNT = POOL.length;
 
-/** Feste Stimme, sonst stabil per Hash aus dem Pool: dieselbe Figur klingt immer gleich. */
+/** Feste Stimme oder ein vom Browser einmalig gezogener Pool-Platz. */
 export function resolveVoice(key: VoiceKey): string {
   if (Object.hasOwn(VOICES, key)) return VOICES[key as keyof typeof VOICES];
+  const slot = /^pool:(\d{1,2})$/.exec(key);
+  if (slot && Number(slot[1]) < POOL.length) return POOL[Number(slot[1])];
+  // Auch ältere Sprecherschlüssel bleiben ohne rohe Voice-ID funktionsfähig.
   let hash = 0;
   for (const char of key) hash = (hash * 31 + char.codePointAt(0)!) >>> 0;
   return POOL[hash % POOL.length];

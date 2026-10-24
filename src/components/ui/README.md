@@ -59,7 +59,8 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 
 - Startet im Spiel automatisch, sobald nach „Folgen analysieren“ eine Vorschau da ist (`open-world.tsx`, `cutsceneFor`). „Überspringen“ oder Escape führt direkt zur Vorschau.
 - Die Szene verwendet einen nativen modalen Dialog: Das Dashboard bleibt währenddessen per Tastatur und Maus gesperrt. Enter auf „Überspringen“ beendet die Szene direkt.
-- `buildVisitors` nimmt zuerst bis zu drei direkt Betroffene aus `analysis.reactions` (Gemma wählt dafür `look` und `count` 1–4) und danach bis zu drei bereits geladene feste Figuren mit möglichst unterschiedlicher Haltung. Der erste automatische Besuch wartet nicht auf diese Stimmen; „Im Büro ansehen“ zeigt die inzwischen geladenen Stimmen. Eine laufende Szene behält ihre Besucher unverändert.
+- `buildVisitors` nimmt zuerst bis zu drei direkt Betroffene aus `analysis.reactions` (Gemma wählt dafür `look` und `count` 1–4) und danach bis zu drei bereits geladene feste Figuren mit möglichst unterschiedlicher Haltung. Der erste automatische Besuch wartet nicht auf diese Stimmen; inzwischen eintreffende Bürgerreaktionen werden der offenen Szene hinzugefügt. „Im Büro ansehen“ zeigt die bis dahin geladenen Stimmen erneut.
+- Jede feste Figur spricht mit ihrer festen ElevenLabs-Stimme. Für andere Besucher zieht der Browser beim ersten Auftreten eine Stimme aus einem Pool und speichert die Zuordnung. Sprache endet beim Wechsel oder Schließen der Szene; Musik läuft leise im Hintergrund und wird während der Sprache abgesenkt.
 - Unbekannte `look`-Werte oder doppelte Figuren aus der KI-Antwort werden aussortiert, statt die ganze Analyse abzulehnen.
 - In `/ui-demo` lässt sich die Szene mit Beispielsätzen zum Dönerpreis abspielen.
 

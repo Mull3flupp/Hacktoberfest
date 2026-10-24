@@ -1,6 +1,6 @@
 "use client";
 
-import type { VoiceKey } from "./voices";
+import { RANDOM_VOICE_COUNT, type VoiceKey } from "./voices";
 
 /**
  * Zentrale Audiosteuerung im Browser: eine Sprachspur (nie überlappend), kurze Effekte
@@ -11,6 +11,7 @@ import type { VoiceKey } from "./voices";
 export type SoundEffect = "door-open" | "footsteps" | "gavel" | "decision" | "protest" | "learning";
 
 const MUTE_KEY = "koenig-audio-muted";
+const NPC_VOICES_KEY = "koenig-npc-voices-v1";
 const MUSIC_VOLUME = 0.12;
 const MUSIC_DUCKED = 0.03;
 const EFFECT_VOLUME: Record<SoundEffect, number> = { "door-open": 0.5, footsteps: 0.35, gavel: 0.6, decision: 0.45, protest: 0.18, learning: 0.45 };
@@ -27,6 +28,34 @@ let finishSpeech: (() => void) | null = null;
 const speechCache = new Map<string, string>();
 const effects = new Map<SoundEffect, HTMLAudioElement>();
 const listeners = new Set<(muted: boolean) => void>();
+let npcVoices: Record<string, number> = {};
+let npcVoicesLoaded = false;
+
+function assignedVoice(key: string): string {
+  if (!key.startsWith("npc:")) return key;
+  if (!npcVoicesLoaded) {
+    npcVoicesLoaded = true;
+    try {
+      const saved = JSON.parse(localStorage.getItem(NPC_VOICES_KEY) || "{}");
+      npcVoices = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+    } catch { npcVoices = {}; }
+  }
+  let slot = npcVoices[key];
+  if (!Number.isInteger(slot) || slot < 0 || slot >= RANDOM_VOICE_COUNT) {
+    const used = new Set(Object.values(npcVoices).filter(value => Number.isInteger(value) && value >= 0 && value < RANDOM_VOICE_COUNT));
+    const unused = Array.from({ length: RANDOM_VOICE_COUNT }, (_, index) => index).filter(index => !used.has(index));
+    const choices = unused.length ? unused : Array.from({ length: RANDOM_VOICE_COUNT }, (_, index) => index);
+    const draw = new Uint32Array(1);
+    if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(draw);
+    else draw[0] = Math.floor(Math.random() * 0x1_0000_0000);
+    slot = choices[draw[0] % choices.length];
+    npcVoices[key] = slot;
+    const keys = Object.keys(npcVoices);
+    if (keys.length > 100) delete npcVoices[keys[0]];
+    try { localStorage.setItem(NPC_VOICES_KEY, JSON.stringify(npcVoices)); } catch {}
+  }
+  return `pool:${slot}`;
+}
 
 function readMuted() {
   if (!isBrowser()) return false;
@@ -108,8 +137,8 @@ async function loadSpeech(voice: VoiceKey, text: string, signal: AbortSignal) {
  */
 export async function speak(speaker: VoiceKey, text: string): Promise<void> {
   stopCurrentSpeech();
-  // Jede Figur bekommt eine Stimme: unbekannte Namen landen serverseitig stabil im Stimmenpool.
-  const voice = speaker.replace(/[^\p{L}\p{N} :._'-]/gu, "").trim().slice(0, 80) || "npc";
+  // Unbekannte Besucher ziehen ihre Stimme einmalig; feste Figuren behalten ihre Zuordnung.
+  const voice = assignedVoice(speaker.replace(/[^\p{L}\p{N} :._'-]/gu, "").trim().slice(0, 80) || "npc");
   const clean = text.replace(/[„“"]/g, "").trim().slice(0, 2500);
   if (!isBrowser() || muted || !clean) return;
   const token = speechToken;

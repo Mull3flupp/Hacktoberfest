@@ -137,7 +137,7 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
   const [typed, setTyped] = useState(0);
   const current = visitors[index];
   const initialVisitors = useRef(visitors);
-  const spokenLine = current ? `${index}:${voiceForVisitor(current.who)}:${current.quote}` : "";
+  const spokenLine = current ? `${index}:${voiceForVisitor(current)}:${current.quote}` : "";
   const quote = current ? `„${current.quote}“` : "";
 
   useEffect(() => {
@@ -171,7 +171,7 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
   // Der Besuch spricht seinen Satz mit eigener ElevenLabs-Stimme.
   useEffect(() => {
     if (phase !== "talk" || !current) return;
-    void speakCharacter(voiceForVisitor(current.who), current.quote);
+    void speakCharacter(voiceForVisitor(current), current.quote);
     return () => stopCurrentSpeech();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- nur bei neuem Satz sprechen, nicht bei jedem Render
   }, [phase, spokenLine]);
