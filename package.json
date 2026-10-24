@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack --hostname 127.0.0.1",
+    "dev": "node scripts/dev.mjs",
+    "runtime:prepare": "node scripts/dev.mjs --prepare-only",
     "build": "next build --webpack",
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts tests/*.test.mjs"
   },
   "engines": {
     "node": ">=22.0.0"

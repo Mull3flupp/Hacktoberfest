@@ -5,17 +5,18 @@
 ```sh
 git clone https://github.com/Mull3flupp/Hacktoberfest.git
 cd Hacktoberfest
-npm ci
 cp .env.example .env.local
 ```
 
 Das private Repository erfordert GitHub-Zugriff. In `.env.local` einen gültigen Gemma-Zugang und einen dauerhaften `SIMULATION_SIGNING_KEY` eintragen, dann `npm run dev` starten und **http://127.0.0.1:3000/** öffnen. Die genaue Konfiguration steht in der [README](README.md). Zugangsdaten niemals committen oder in Testausgaben schreiben.
 
+Der Entwicklungsstart richtet Abhängigkeiten und Build-Cache außerhalb des Cloud-Ordners ein. Der Quellcode bleibt live mit dem Projekt verbunden; vorhandene Ordner werden gesichert. Für lokale Prüfungen ohne Server zuerst `npm run runtime:prepare` ausführen. CI und Produktionsumgebungen können unverändert `npm ci` verwenden.
+
 ## Wo Änderungen hingehören
 
 | Aufgabe | Einstieg |
 | --- | --- |
-| Aktive Oberfläche und freie Spielinteraktion | `src/components/open-world.tsx`, `src/app/globals.css` |
+| Aktive Oberfläche und freie Spielinteraktion | `src/components/open-world.tsx`, `src/components/world-panels.tsx`, `src/components/pixel-game.css` |
 | Welt- und Analyseverträge | `src/lib/simulation/types.ts` |
 | Validierung, Ausgangszustand, bestätigte und verzögerte Folgen | `src/lib/simulation/state.ts` |
 | Signaturen, Gültigkeitsdauer und Bindung an die Welt | `src/lib/server/simulation-signing.ts` |

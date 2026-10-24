@@ -9,7 +9,6 @@ Der aktuelle Entwurf steht in [open-simulation-plan.md](open-simulation-plan.md)
 Voraussetzung: Node.js 22 oder neuer, npm und ein funktionierender Gemma-Zugang.
 
 ```sh
-npm ci
 cp .env.example .env.local
 ```
 
@@ -30,6 +29,10 @@ npm run dev
 ```
 
 Öffnen: **http://127.0.0.1:3000/**. Nach Änderungen an Environment-Variablen den Server neu starten. Ohne Signaturschlüssel lässt sich kein Land gründen; ohne gültigen Modellzugang sind keine freien Folgenanalysen oder Tutorantworten möglich. Anbieterfehler erzeugen eine sichtbare Fehlermeldung und verändern den letzten bestätigten Spielstand nicht.
+
+`npm run dev` installiert die festgeschriebenen Abhängigkeiten bei Bedarf automatisch in einem projektspezifischen lokalen temporären Ordner. `node_modules` und `.next` verweisen dorthin, damit Cloud-Auslagerung im Projektordner keine leeren Paketdateien oder unlesbaren Build-Caches erzeugt. Quellcode und `.env.local` bleiben im Projekt; Zugangsdaten werden nicht kopiert. Bestehende Abhängigkeits- und Cacheordner werden unter `.local-runtime-backups/` gesichert. Nach einer Bereinigung temporärer Dateien legt der nächste Start die Laufzeit neu an. `npm run runtime:prepare` richtet sie ohne Serverstart ein.
+
+Für reine CI-/Produktions-Checkouts weiterhin `npm ci` verwenden. Falls du im lokalen Cloud-Ordner erneut `npm ci` ausführst, danach `npm run runtime:prepare` oder `npm run dev` starten, bevor du Tests oder Builds aufrufst.
 
 Für einen Produktionslauf: `npm run build`, danach `npm start`.
 
