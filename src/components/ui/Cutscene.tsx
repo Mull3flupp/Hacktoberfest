@@ -5,8 +5,8 @@ import { getCharacter, type CharacterId, type VisitorLook } from "@/lib/simulati
 import type { ActorReaction, CharacterReaction, WorldAnalysis } from "@/lib/simulation/types";
 import { bodyFont, pixelFont } from "./fonts";
 import { OfficeBackground, OfficeDesk } from "./officeScene";
-import { PersonSprite } from "./people";
-import { VisitorSprite } from "./visitors";
+import { PixelSprite } from "./PixelSprite";
+import { characterSprite32, visitorSprite32, type Frame, type Mood } from "./sprites32";
 import "./theme.css";
 import "./cutscene.css";
 
@@ -59,12 +59,26 @@ const memberCount = (visitor: CutsceneVisitor) => ("count" in visitor.who ? visi
 /** Breite einer Gruppe relativ zu einer Einzelperson (Mitglieder überlappen sich leicht) */
 const groupFactor = (count: number) => count * 0.62 + 0.38;
 
-function VisitorFigure({ visitor }: { visitor: CutsceneVisitor }) {
-  if ("character" in visitor.who) return <span className="cut-figure"><PersonSprite id={visitor.who.character} size={64} bob={false} /></span>;
-  const { look, count } = visitor.who;
+/** Gesichtsausdruck passend zur Haltung */
+const MOODS: Record<Stance, Mood> = { support: "happy", oppose: "angry", concern: "worried", mixed: "neutral" };
+
+function Member({ visitor, index, mood, frame }: { visitor: CutsceneVisitor; index: number; mood: Mood; frame: Frame }) {
+  const { grid, palette } = "character" in visitor.who ? characterSprite32(visitor.who.character, mood, frame) : visitorSprite32(visitor.who.look, index, mood, frame);
+  return <PixelSprite grid={grid} palette={palette} size={64} className={frame === 2 ? "cut-frame cut-frame--b" : frame === 1 ? "cut-frame cut-frame--a" : undefined} />;
+}
+
+/** Figur(en) in 32×32; beim Gehen wechseln zwei Lauf-Bilder, sonst zeigt das Gesicht die Haltung. */
+function VisitorFigure({ visitor, mood = "neutral", walking = false, single = false }: { visitor: CutsceneVisitor; mood?: Mood; walking?: boolean; single?: boolean }) {
+  const count = single ? 1 : memberCount(visitor);
   return (
-    <span className="cut-figure cut-figure--group" style={{ "--member": `${100 / groupFactor(count)}%` } as CSSProperties}>
-      {Array.from({ length: count }, (_, index) => <VisitorSprite key={index} look={look} variant={index} size={64} />)}
+    <span className={`cut-figure ${count > 1 ? "cut-figure--group" : ""}`} style={{ "--member": `${100 / groupFactor(count)}%` } as CSSProperties}>
+      {Array.from({ length: count }, (_, index) => (
+        <span key={index} className="cut-member">
+          {walking
+            ? <><Member visitor={visitor} index={index} mood="neutral" frame={1} /><Member visitor={visitor} index={index} mood="neutral" frame={2} /></>
+            : <Member visitor={visitor} index={index} mood={mood} frame={0} />}
+        </span>
+      ))}
     </span>
   );
 }
@@ -72,7 +86,7 @@ function VisitorFigure({ visitor }: { visitor: CutsceneVisitor }) {
 /* Positionen im Raum (Prozent der 16:9-Kamera). Breite = Größe einer Einzelperson. */
 type Spot = { left: number; bottom: number; width: number };
 const AT_DOOR: Spot = { left: 50, bottom: 37.5, width: 10 };
-const AT_DESK: Spot = { left: 50, bottom: 15, width: 20 };
+const AT_DESK: Spot = { left: 50, bottom: 20, width: 20 };
 const WAITING: Spot[] = [
   { left: 19, bottom: 31, width: 10 }, { left: 81, bottom: 31, width: 10 },
   { left: 30, bottom: 34, width: 8.5 }, { left: 70, bottom: 34, width: 8.5 },
@@ -182,7 +196,7 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
               style={placed(spot, memberCount(visitor), phase === "final" ? 100 : isCurrent ? 42 : 20)}
             >
               {!isCurrent && <span className={`cut-badge cut-stance--${visitor.stance}`} aria-hidden="true">{STANCES[visitor.stance].icon}</span>}
-              <VisitorFigure visitor={visitor} />
+              <VisitorFigure visitor={visitor} walking={isCurrent && phase === "walk"} mood={isCurrent && phase === "walk" ? "neutral" : MOODS[visitor.stance]} />
             </div>
           );
         })}
@@ -213,7 +227,7 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
             </div>
           ) : current && (
             <>
-              <div className="cut-dialog__portrait" aria-hidden="true"><VisitorFigure visitor={current} /></div>
+              <div className="cut-dialog__portrait" aria-hidden="true"><VisitorFigure visitor={current} single mood={phase === "talk" ? MOODS[current.stance] : "neutral"} /></div>
               <div className="cut-dialog__body">
                 <p className="cut-dialog__name font-pixel">
                   {current.name} <small>· {current.role}</small>

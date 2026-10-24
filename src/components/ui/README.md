@@ -46,6 +46,7 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 | `IntroSlides` | Durchklickbare Intro-Show mit animierten Pixel-Szenen, endet mit „Du wurdest gewählt!“ |
 | `Cutscene`, `buildVisitors` | Zwischensequenz in Ego-Perspektive: Du sitzt am Schreibtisch, Betroffene und feste Figuren kommen durch die Tür auf dich zu und sagen ihre Meinung. Raum und Tisch in `officeScene.tsx` |
 | `VisitorSprite` | Besucherfiguren für die Zwischensequenz: `imbiss`, `studierende`, `handwerk`, `business`, `senioren`, `familie`, `verwaltung`, `buerger` |
+| `characterSprite32`, `visitorSprite32` | 32×32-Figuren nur für die Zwischensequenz, mit Gesichtsausdruck (`neutral`, `happy`, `angry`, `worried`) und zwei Lauf-Bildern; aus Bausteinen gebaut in `sprites32.ts` |
 
 ## Intro und Bürgerfiguren
 

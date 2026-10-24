@@ -79,24 +79,35 @@
   width: 100%;
 }
 
-.cut-figure svg {
+.cut-member {
+  position: relative;
   display: block;
   flex: 0 0 auto;
+  width: 100%;
+}
+
+.cut-member svg {
+  display: block;
   width: 100%;
   height: auto;
 }
 
-.cut-figure--group svg { width: var(--member); }
-.cut-figure--group svg + svg { margin-left: calc(var(--member) * -0.38); }
+.cut-figure--group .cut-member { width: var(--member); }
+.cut-figure--group .cut-member + .cut-member { margin-left: calc(var(--member) * -0.38); }
+
+/* Zwei Lauf-Bilder liegen übereinander und wechseln sich ab */
+.cut-frame--b { position: absolute; inset: 0; }
+.cut-frame--a { animation: cut-frame-a 0.4s steps(1, end) infinite; }
+.cut-frame--b { animation: cut-frame-b 0.4s steps(1, end) infinite; }
 
 /* Gehen: Wippen; Sprechen: Körpersprache je nach Haltung */
-.cut-visitor.is-walking svg { animation: cut-walk 0.32s steps(1, end) infinite; }
-.cut-visitor--support svg { animation: cut-hop 0.9s steps(1, end) infinite; }
-.cut-visitor--oppose svg { animation: cut-shake 0.6s steps(1, end) infinite; }
-.cut-visitor--concern svg, .cut-visitor--mixed svg { animation: cut-tilt 1.4s steps(1, end) infinite; }
-.cut-figure--group svg:nth-child(2) { animation-delay: 0.12s !important; }
-.cut-figure--group svg:nth-child(3) { animation-delay: 0.24s !important; }
-.cut-figure--group svg:nth-child(4) { animation-delay: 0.36s !important; }
+.cut-visitor.is-walking .cut-member { animation: cut-walk 0.4s steps(1, end) infinite; }
+.cut-visitor--support .cut-member { animation: cut-hop 0.9s steps(1, end) infinite; }
+.cut-visitor--oppose .cut-member { animation: cut-shake 0.6s steps(1, end) infinite; }
+.cut-visitor--concern .cut-member, .cut-visitor--mixed .cut-member { animation: cut-tilt 1.4s steps(1, end) infinite; }
+.cut-figure--group .cut-member:nth-child(2) { animation-delay: 0.12s !important; }
+.cut-figure--group .cut-member:nth-child(3) { animation-delay: 0.24s !important; }
+.cut-figure--group .cut-member:nth-child(4) { animation-delay: 0.36s !important; }
 
 .cut-badge {
   position: absolute;
@@ -207,7 +218,9 @@
   border: var(--px-border) solid var(--px-ink);
 }
 
-.cut-dialog__portrait .cut-figure { width: 100%; }
+/* Porträt als Brustbild: Figur doppelt so groß, oben ausgerichtet */
+.cut-dialog__portrait { align-items: flex-start; }
+.cut-dialog__portrait .cut-figure { flex: none; width: 180%; margin-top: 4%; }
 
 .cut-dialog__body { flex: 1; min-width: 0; }
 
@@ -282,6 +295,8 @@
 @keyframes cut-title { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
 @keyframes cut-dialog-in { from { transform: translate(-50%, 30px); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
 @keyframes cut-blink { 50% { opacity: 0.25; } }
+@keyframes cut-frame-a { 0% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes cut-frame-b { 0% { opacity: 0; } 50% { opacity: 1; } }
 @keyframes cut-walk { 50% { transform: translateY(-4%); } }
 @keyframes cut-hop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5%); } }
 @keyframes cut-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3%); } 75% { transform: translateX(3%); } }
@@ -306,6 +321,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cutscene, .cut-dialog, .cut-rec, .cut-caret, .cut-visitor svg, .office-dust rect, .office-steam rect { animation: none !important; }
+  .cutscene, .cut-dialog, .cut-rec, .cut-caret, .cut-member, .office-dust rect, .office-steam rect, .cut-frame--a { animation: none !important; }
+  .cut-frame--b { display: none; }
   .cut-camera, .cut-visitor, .office-door, .office-doorlight { transition: none; }
 }
