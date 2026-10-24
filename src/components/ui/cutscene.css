@@ -1,5 +1,6 @@
 /*
- * Zwischensequenz (Cutscene): Büro im Kino-Look mit schwarzen Balken.
+ * Zwischensequenz (Cutscene) in Ego-Perspektive: bildschirmfüllendes Büro,
+ * Besucher kommen durch die Tür auf den Schreibtisch zu, Dialogbox wie im Spiel.
  * Eigene Klassen statt Tailwind, damit die Szene unabhängig vom Spiel-Layout gleich aussieht.
  */
 
@@ -7,12 +8,11 @@
   position: fixed;
   inset: 0;
   z-index: 110;
-  display: flex;
-  flex-direction: column;
+  overflow: hidden;
   background: #000;
   color: var(--px-ink);
   font-family: var(--font-body), "Nunito", system-ui, sans-serif;
-  animation: cut-in 400ms steps(4, end);
+  animation: cut-in 600ms steps(6, end);
 }
 
 .cutscene button {
@@ -21,217 +21,245 @@
   cursor: pointer;
 }
 
-/* Kinobalken oben und unten */
-.cut-bar {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 16px;
-  min-height: 64px;
-  padding: 10px 20px;
-  color: #fff8e7;
-  background: #000;
+/* 16:9-Kamera, die den ganzen Bildschirm füllt (wie object-fit: cover) */
+.cut-camera {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100vw, 177.78vh);
+  height: max(56.25vw, 100vh);
+  transform: translate(-50%, -50%) scale(1);
+  transform-origin: 50% 62%;
+  transition: transform 900ms cubic-bezier(0.3, 0, 0.2, 1);
 }
 
-.cut-bar--top { animation: cut-bar-top 500ms steps(5, end); }
-.cut-bar--bottom { justify-content: space-between; animation: cut-bar-bottom 500ms steps(5, end); }
+/* Beim Sprechen fährt die Kamera leicht heran */
+.cut-camera.is-close { transform: translate(-50%, -50%) scale(1.07); }
 
-.cut-rec {
-  flex: none;
-  font-size: 0.75rem;
-  color: var(--px-red);
-  text-transform: uppercase;
-  animation: cut-blink 1.2s steps(1, end) infinite;
-}
-
-.cut-decision {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 0.9rem;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.cut-decision .font-pixel { color: var(--px-yellow); }
-
-.cut-progress { font-size: 0.75rem; opacity: 0.8; }
-
-.cutscene .cut-skip {
-  padding: 8px 14px;
-  font-size: 0.8rem;
-  color: #fff8e7;
-  background: transparent;
-  border: 2px solid #fff8e7;
-}
-
-.cutscene .cut-next {
-  min-height: 46px;
-  padding: 0 20px;
-  font-size: 1rem;
-  text-transform: uppercase;
-  color: #fff;
-  background: var(--px-green);
-  border: var(--px-border) solid #fff8e7;
-  box-shadow: 0 var(--px-shadow) 0 var(--px-green-dark);
-}
-
-.cutscene .cut-next:active { transform: translateY(var(--px-shadow)); box-shadow: none; }
-.cutscene .cut-next:focus-visible, .cutscene .cut-skip:focus-visible { outline: 3px solid var(--px-yellow); outline-offset: 2px; }
-
-/* Bühne: das Büro */
-.cut-stage {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.cut-backdrop {
+.office-layer {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
 
-/* Tür links, geht auf, wenn jemand hereinkommt */
-.cut-door {
-  position: absolute;
-  left: 4%;
-  bottom: 24%;
-  width: 13%;
-  height: 52%;
-  background: #2a1a10;
-  border: 6px solid #6b4f2e;
-  border-bottom: none;
-}
+.office-desk { z-index: 200; pointer-events: none; }
 
-.cut-door span {
-  position: absolute;
-  inset: 0;
-  background: #8a5a2b;
+/* Tür schwingt auf, Licht fällt in den Raum */
+.office-door {
+  transform-box: fill-box;
   transform-origin: left center;
-  transition: transform 300ms steps(3, end);
+  transition: transform 450ms steps(5, end);
 }
 
-.cut-door span::after {
-  content: "";
+.office-door.is-open { transform: scaleX(0.14); }
+
+.office-doorlight { opacity: 0; transition: opacity 450ms steps(4, end); }
+.office-doorlight.is-open { opacity: 0.22; }
+
+.office-dust { opacity: 0; transition: opacity 600ms; }
+.office-dust.is-open { opacity: 1; }
+.office-dust rect { animation: cut-dust 3s steps(6, end) infinite; }
+
+.office-steam rect { animation: cut-steam 2.4s steps(6, end) infinite; }
+
+/* Besucher */
+.cut-visitor {
   position: absolute;
-  right: 12%;
-  top: 50%;
-  width: 10%;
-  height: 4%;
-  background: var(--px-yellow);
+  transform: translateX(-50%);
+  transition: left 2s steps(20, end), bottom 2s steps(20, end), width 2s steps(20, end);
 }
 
-.cut-door.is-open span { transform: scaleX(0.15); }
+.cut-visitor.is-waiting { filter: brightness(0.92); }
 
-/* Wer gesprochen hat, steht hinten rechts */
-.cut-waiting {
-  position: absolute;
-  right: 3%;
-  bottom: 19%;
+.cut-figure {
   display: flex;
-  flex-wrap: wrap-reverse;
-  justify-content: flex-end;
-  gap: 2px 6px;
-  max-width: 34%;
-}
-
-/* Im Fazit stehen alle nebeneinander vor der Karte */
-.cut-waiting--final {
-  right: 50%;
-  bottom: 12%;
-  max-width: 94%;
-  flex-wrap: nowrap;
+  align-items: flex-end;
   justify-content: center;
-  transform: translateX(50%);
+  width: 100%;
 }
 
-.cut-waiting__person {
-  position: relative;
-  animation: cut-step-in 300ms steps(3, end);
+.cut-figure svg {
+  display: block;
+  flex: 0 0 auto;
+  width: 100%;
+  height: auto;
 }
+
+.cut-figure--group svg { width: var(--member); }
+.cut-figure--group svg + svg { margin-left: calc(var(--member) * -0.38); }
+
+/* Gehen: Wippen; Sprechen: Körpersprache je nach Haltung */
+.cut-visitor.is-walking svg { animation: cut-walk 0.32s steps(1, end) infinite; }
+.cut-visitor--support svg { animation: cut-hop 0.9s steps(1, end) infinite; }
+.cut-visitor--oppose svg { animation: cut-shake 0.6s steps(1, end) infinite; }
+.cut-visitor--concern svg, .cut-visitor--mixed svg { animation: cut-tilt 1.4s steps(1, end) infinite; }
+.cut-figure--group svg:nth-child(2) { animation-delay: 0.12s !important; }
+.cut-figure--group svg:nth-child(3) { animation-delay: 0.24s !important; }
+.cut-figure--group svg:nth-child(4) { animation-delay: 0.36s !important; }
 
 .cut-badge {
   position: absolute;
-  top: -6px;
-  right: -4px;
+  top: -4%;
+  right: 4%;
   z-index: 1;
-  min-width: 20px;
-  padding: 0 3px;
-  font-size: 0.75rem;
+  min-width: 22px;
+  padding: 0 4px;
+  font-size: 0.8rem;
   font-weight: bold;
-  line-height: 18px;
+  line-height: 20px;
   text-align: center;
   border: 2px solid var(--px-ink);
 }
 
-/* Die sprechende Person: läuft von der Tür in die Mitte */
-.cut-speaker {
+/* Abdunkelte Ränder wie bei einer Kamera */
+.cut-vignette {
   position: absolute;
-  left: 9%;
-  bottom: 14%;
-  transform: translateX(-50%);
-  transition: left 1.4s steps(14, end);
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(10, 8, 20, 0.45) 100%);
 }
 
-.cut-speaker.has-arrived { left: 40%; }
-
-.cut-group { display: inline-flex; align-items: flex-end; }
-.cut-group > * + * { margin-left: -14px; }
-
-.cut-speaker.is-walking .px-sprite { animation: cut-walk 0.3s steps(1, end) infinite; }
-.cut-speaker--support .px-sprite { animation: cut-hop 0.9s steps(1, end) infinite; }
-.cut-speaker--oppose .px-sprite { animation: cut-shake 0.6s steps(1, end) infinite; }
-.cut-speaker--concern .px-sprite, .cut-speaker--mixed .px-sprite { animation: cut-tilt 1.4s steps(1, end) infinite; }
-.cut-group > :nth-child(2) { animation-delay: 0.15s !important; }
-.cut-group > :nth-child(3) { animation-delay: 0.3s !important; }
-.cut-group > :nth-child(4) { animation-delay: 0.45s !important; }
-
-/* Sprechblase */
-/* Sprechblase hat einen festen Platz über der Raummitte */
-.cut-bubble {
+/* Kleine Einblendung oben */
+.cut-hud {
   position: absolute;
-  left: calc(40% - 64px);
-  bottom: calc(14% + 150px);
-  z-index: 2;
-  width: min(460px, 56%);
-  padding: 10px 14px;
-  background: var(--px-white);
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  color: #fff8e7;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.cut-hud__place {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cut-hud__decision { font-family: var(--font-body), "Nunito", system-ui, sans-serif; font-size: 0.9rem; }
+.cut-rec { color: var(--px-red); animation: cut-blink 1.2s steps(1, end) infinite; }
+
+.cutscene .cut-skip {
+  flex: none;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  color: #fff8e7;
+  background: rgba(0, 0, 0, 0.45);
+  border: 2px solid #fff8e7;
+  pointer-events: auto;
+}
+
+/* Einblendung von Ort und Uhrzeit */
+.cut-title {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #fff8e7;
+  background: #000;
+  cursor: pointer;
+  animation: cut-title 2.2s steps(11, end) forwards;
+}
+
+.cut-title__place { margin: 0; font-size: clamp(1.6rem, 5vw, 3rem); }
+.cut-title__time { margin: 0; font-size: clamp(0.9rem, 2.4vw, 1.3rem); color: var(--px-yellow); }
+
+/* Dialogbox unten wie im Spiel */
+.cut-dialog {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 3;
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  width: min(980px, calc(100% - 24px));
+  padding: 14px 16px;
+  background: var(--px-paper);
   border: var(--px-border) solid var(--px-ink);
-  box-shadow: 0 var(--px-shadow) 0 rgba(27, 27, 47, 0.35);
-  animation: cut-pop 200ms steps(3, end);
+  box-shadow: 0 var(--px-shadow) 0 var(--px-ink), 0 0 0 3px rgba(255, 248, 231, 0.6);
+  transform: translateX(-50%);
+  animation: cut-dialog-in 300ms steps(4, end);
 }
 
-.cut-bubble::after {
-  content: "";
-  position: absolute;
-  left: 36px;
-  bottom: -12px;
-  width: 14px;
-  height: 14px;
-  background: var(--px-white);
-  border-right: var(--px-border) solid var(--px-ink);
-  border-bottom: var(--px-border) solid var(--px-ink);
-  transform: rotate(45deg) translate(-4px, -4px);
+.cut-dialog__portrait {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+  background: var(--px-yellow-light);
+  border: var(--px-border) solid var(--px-ink);
 }
 
-.cut-bubble strong {
+.cut-dialog__portrait .cut-figure { width: 100%; }
+
+.cut-dialog__body { flex: 1; min-width: 0; }
+
+.cut-dialog__name {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  font-size: 0.95rem;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 1.05rem;
 }
 
-.cut-bubble small { font-size: 0.75rem; font-weight: normal; opacity: 0.75; }
+.cut-dialog__name small { font-size: 0.8rem; font-weight: normal; opacity: 0.7; }
 
-.cut-bubble p {
-  min-height: 2.8em;
-  margin: 6px 0 0;
-  font-size: 1.1rem;
-  line-height: 1.4;
+.cut-dialog__text {
+  min-height: 2.9em;
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.45;
 }
+
+.cut-dialog__text--stage { font-style: italic; opacity: 0.75; }
+.cut-dialog__eyebrow { margin: 0; font-size: 0.8rem; color: var(--px-purple); text-transform: uppercase; }
+.cut-dialog__headline { margin: 2px 0 8px; font-size: clamp(1.4rem, 3.4vw, 2rem); line-height: 1.1; }
+.cut-dialog__tally { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+
+.cut-dialog__controls {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cut-dialog__progress { font-size: 0.75rem; opacity: 0.7; }
+
+.cutscene .cut-next {
+  min-height: 46px;
+  margin-bottom: var(--px-shadow);
+  padding: 0 18px;
+  font-size: 1rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #fff;
+  background: var(--px-green);
+  border: var(--px-border) solid var(--px-ink);
+  box-shadow: 0 var(--px-shadow) 0 var(--px-green-dark);
+}
+
+.cutscene .cut-next:active { transform: translateY(var(--px-shadow)); box-shadow: none; }
+.cutscene .cut-next:focus-visible, .cutscene .cut-skip:focus-visible { outline: 3px solid var(--px-yellow); outline-offset: 2px; }
 
 .cut-caret {
   display: inline-block;
@@ -250,55 +278,34 @@
 .cut-stance--oppose { background: var(--px-purple-light); }
 .cut-stance--mixed { background: var(--px-white); }
 
-/* Fazit-Karte */
-.cut-final {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: min(560px, calc(100% - 32px));
-  padding: 20px 22px;
-  background: var(--px-paper);
-  border: var(--px-border) solid var(--px-ink);
-  box-shadow: 0 var(--px-shadow) 0 var(--px-ink);
-  transform: translate(-50%, -60%);
-  animation: cut-pop 300ms steps(3, end);
-}
-
-.cut-final__eyebrow { margin: 0; font-size: 0.8rem; text-transform: uppercase; color: var(--px-purple); }
-.cut-final h2 { margin: 4px 0 10px; font-size: clamp(1.5rem, 4vw, 2.2rem); line-height: 1.1; }
-.cut-final p { margin: 0 0 10px; line-height: 1.5; }
-.cut-final__tally { display: flex; flex-wrap: wrap; gap: 6px; }
-
 @keyframes cut-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes cut-bar-top { from { transform: translateY(-100%); } to { transform: none; } }
-@keyframes cut-bar-bottom { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes cut-title { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+@keyframes cut-dialog-in { from { transform: translate(-50%, 30px); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
 @keyframes cut-blink { 50% { opacity: 0.25; } }
-@keyframes cut-walk { 50% { transform: translateY(-6%); } }
-@keyframes cut-hop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10%); } }
-@keyframes cut-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5%); } 75% { transform: translateX(5%); } }
-@keyframes cut-tilt { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-5deg); } }
-@keyframes cut-pop { from { transform: scale(0.9); opacity: 0.4; } to { transform: scale(1); opacity: 1; } }
-.cut-final { animation-name: cut-final-pop; }
-@keyframes cut-final-pop { from { transform: translate(-50%, -55%) scale(0.9); opacity: 0.4; } to { transform: translate(-50%, -60%); opacity: 1; } }
-@keyframes cut-step-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes cut-walk { 50% { transform: translateY(-4%); } }
+@keyframes cut-hop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5%); } }
+@keyframes cut-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3%); } 75% { transform: translateX(3%); } }
+@keyframes cut-tilt { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-3deg); } }
+@keyframes cut-dust { 0% { transform: translateY(0); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-6px); opacity: 0; } }
+@keyframes cut-steam { 0% { transform: translateY(0); opacity: 0; } 30% { opacity: 0.8; } 100% { transform: translateY(-8px); opacity: 0; } }
 
 @media (max-width: 700px) {
-  .cut-bar { min-height: 52px; padding: 8px 10px; gap: 10px; }
-  .cut-rec { display: none; }
-  .cut-decision { font-size: 0.8rem; }
-  .cut-door { width: 18%; left: 2%; }
-  .cut-speaker.has-arrived { left: 50%; }
-  .cut-speaker .px-sprite { width: 80px; height: 80px; }
-  .cut-bubble { left: 4%; right: 4%; width: auto; bottom: calc(14% + 104px); }
-  .cut-bubble::after { left: calc(50% - 7px); }
-  .cut-bubble p { font-size: 1rem; }
-  .cut-waiting { max-width: 46%; bottom: 20%; }
-  .cut-waiting .px-sprite { width: 40px; height: 40px; }
-  .cutscene .cut-next { padding: 0 12px; font-size: 0.85rem; }
+  .cut-hud { padding: 10px; }
+  .cut-hud__place { font-size: 0.7rem; }
+  .cut-dialog { bottom: 10px; gap: 10px; padding: 10px; flex-wrap: wrap; }
+  .cut-dialog__portrait { width: 64px; height: 64px; }
+  .cut-dialog__text { font-size: 1rem; }
+  .cut-dialog__controls { flex-direction: row; align-items: center; width: 100%; }
+  .cutscene .cut-next { margin-left: auto; padding: 0 12px; font-size: 0.85rem; }
+}
+
+/* Hochkant (Handy): Szene wie ein Querformat-Video, Dialogbox darunter */
+@media (max-aspect-ratio: 4/5) {
+  .cut-camera { top: 40%; width: 170vw; height: 95.6vw; }
+  .cut-vignette { background: radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(10, 8, 20, 0.5) 100%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cutscene, .cut-bar--top, .cut-bar--bottom, .cut-rec, .cut-caret, .cut-bubble, .cut-final, .cut-waiting__person,
-  .cut-speaker .px-sprite { animation: none !important; }
-  .cut-speaker, .cut-door span { transition: none; }
+  .cutscene, .cut-dialog, .cut-rec, .cut-caret, .cut-visitor svg, .office-dust rect, .office-steam rect { animation: none !important; }
+  .cut-camera, .cut-visitor, .office-door, .office-doorlight { transition: none; }
 }

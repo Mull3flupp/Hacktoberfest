@@ -44,7 +44,7 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 | `PersonSprite` | Die sieben festen Bürgerfiguren (Finn, Oma Gisela, Bauer Heinz, Lea, Mika, Karen, Konsti) |
 | `PeopleBar` | Leiste unten im Spiel: die Bürgerfiguren mit Sprechblase und Haltung (+ dafür, − dagegen, ? Bedenken, ~ zwiespältig) |
 | `IntroSlides` | Durchklickbare Intro-Show mit animierten Pixel-Szenen, endet mit „Du wurdest gewählt!“ |
-| `Cutscene`, `buildVisitors` | Zwischensequenz im Büro: Betroffene und feste Figuren kommen nacheinander herein und sagen ihre Meinung |
+| `Cutscene`, `buildVisitors` | Zwischensequenz in Ego-Perspektive: Du sitzt am Schreibtisch, Betroffene und feste Figuren kommen durch die Tür auf dich zu und sagen ihre Meinung. Raum und Tisch in `officeScene.tsx` |
 | `VisitorSprite` | Besucherfiguren für die Zwischensequenz: `imbiss`, `studierende`, `handwerk`, `business`, `senioren`, `familie`, `verwaltung`, `buerger` |
 
 ## Intro und Bürgerfiguren
