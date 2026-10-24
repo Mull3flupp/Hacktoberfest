@@ -51,7 +51,7 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 ## Intro und Bürgerfiguren
 
 - **Intro:** `src/components/intro-gate.tsx` zeigt `IntroSlides` auf der Startseite einmal pro Browser-Tab. Mit `/?intro` läuft es erneut. Die Szenen sind in `introScenes.tsx` aus Rechtecken gezeichnet, ohne Bilddateien.
-- **Figuren:** Namen, Rollen und die unveränderten Charakterbeschreibungen stehen in `src/lib/simulation/characters.ts`. `src/lib/server/character-reactions.ts` erzeugt daraus pro Figur einen eigenen System-Prompt und eine separate Gemma-Anfrage. Jede Stimme kennt die vorgeschlagenen Weltfolgen und ihre eigene letzte Reaktion. `characterReactions` wird mit der Vorschau signiert und nach Bestätigung im Weltzustand behalten. Ältere Spielstände ohne diese Reaktionen bleiben gültig; die Leiste zeigt dann die Leerlauf-Sprüche.
+- **Figuren:** Namen, Rollen und die unveränderten Charakterbeschreibungen stehen in `src/lib/simulation/characters.ts`. `src/lib/server/character-reactions.ts` erzeugt daraus pro Figur einen eigenen System-Prompt und eine separate Gemma-Anfrage. Jede Stimme kennt die vorgeschlagenen Weltfolgen und ihre eigene letzte Reaktion. Die Folgenvorschau ist unabhängig von den Stimmen. Jede Stimme kommt separat signiert über `/api/simulation/characters`, bei maximal zwei gleichzeitigen Browser-Anfragen. Sie wird nach Bestätigung außerhalb des signierten Weltzustands gespeichert. `characterReactions` bleibt für ältere Spielstände unterstützt. Ältere Spielstände ohne diese Reaktionen bleiben gültig; die Leiste zeigt dann die Leerlauf-Sprüche.
 - **Intro-Gate:** Solange das Intro läuft, wird die darunterliegende Spielansicht nicht geöffnet oder per Tastatur bedienbar. Nach Ende oder Überspringen wird ein gespeichertes Land wie bisher geladen.
 - PeopleBar und IntroSlides bringen ihre eigenen CSS-Dateien (`people.css`, `intro.css`) mit und funktionieren deshalb auch außerhalb von `.px-root`.
 
@@ -59,7 +59,7 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 
 - Startet im Spiel automatisch, sobald nach „Folgen analysieren“ eine Vorschau da ist (`open-world.tsx`, `cutsceneFor`). „Überspringen“ oder Escape führt direkt zur Vorschau.
 - Die Szene verwendet einen nativen modalen Dialog: Das Dashboard bleibt währenddessen per Tastatur und Maus gesperrt. Enter auf „Überspringen“ beendet die Szene direkt.
-- `buildVisitors` nimmt zuerst bis zu drei direkt Betroffene aus `analysis.reactions` (Gemma wählt dafür `look` und `count` 1–4) und danach bis zu drei feste Figuren mit möglichst unterschiedlicher Haltung.
+- `buildVisitors` nimmt zuerst bis zu drei direkt Betroffene aus `analysis.reactions` (Gemma wählt dafür `look` und `count` 1–4) und danach bis zu drei bereits geladene feste Figuren mit möglichst unterschiedlicher Haltung. Der erste automatische Besuch wartet nicht auf diese Stimmen; „Im Büro ansehen“ zeigt die inzwischen geladenen Stimmen. Eine laufende Szene behält ihre Besucher unverändert.
 - Unbekannte `look`-Werte oder doppelte Figuren aus der KI-Antwort werden aussortiert, statt die ganze Analyse abzulehnen.
 - In `/ui-demo` lässt sich die Szene mit Beispielsätzen zum Dönerpreis abspielen.
 

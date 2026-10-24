@@ -2,6 +2,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { validateWorld, worldProposalSchema } from "../simulation/state";
 import type { SignedWorld, SignedWorldProposal, WorldProposal, WorldState } from "../simulation/types";
+import { signedCharacterVoiceSchema, type SignedCharacterVoice } from "../simulation/voices";
 
 /** Stable JSON prevents object-property ordering from changing the signed meaning. */
 function canonicalJson(value: unknown): string {
@@ -17,8 +18,23 @@ function signingKey(): string {
   return key;
 }
 
-function signature(domain: "world" | "proposal", value: unknown): string {
+function signature(domain: "world" | "proposal" | "character-voice", value: unknown): string {
   return createHmac("sha256", signingKey()).update(`simulation:v3:${domain}\n${canonicalJson(value)}`).digest("hex");
+}
+
+export function proposalFingerprint(proposal: WorldProposal): string {
+  return createHash("sha256").update(canonicalJson(proposal)).digest("hex");
+}
+
+export function signCharacterVoice(voice: SignedCharacterVoice["voice"]): SignedCharacterVoice {
+  const result = signedCharacterVoiceSchema.parse({ voice, signature: "0".repeat(64) });
+  return { voice: result.voice, signature: signature("character-voice", result.voice) };
+}
+
+export function verifyCharacterVoice(input: unknown): SignedCharacterVoice["voice"] {
+  const result = signedCharacterVoiceSchema.parse(input);
+  checkSignature(result.signature, signature("character-voice", result.voice));
+  return result.voice;
 }
 
 const signatureSchema = z.string().regex(/^[a-f0-9]{64}$/);

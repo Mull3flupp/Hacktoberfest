@@ -10,7 +10,8 @@ import type { ConceptId, LearningProgress } from "@/lib/game/types";
 import { validateWorld, worldProposalSchema } from "@/lib/simulation/state";
 import type { SignedWorld, SignedWorldProposal, WorldCommit, WorldState } from "@/lib/simulation/types";
 import { LearningPanel } from "./learning-panel";
-import { Cutscene, buildVisitors } from "./ui/Cutscene";
+import { Cutscene, buildVisitors, type CutsceneVisitor } from "./ui/Cutscene";
+import { useCitizenVoices } from "./use-citizen-voices";
 import { PeopleBar } from "./ui/PeopleBar";
 import { VoicePanel, type VoiceBridge } from "./voice-panel";
 import { FeedbackSheet, Gruender, MoodMeter, PixelButton, PixelCard, ProfessorIgel, ProgressBar, RichterFrosch, SceneCard, cn } from "./ui";
@@ -72,6 +73,8 @@ export function OpenWorld() {
   const [draft, setDraft] = useState("");
   const [proposal, setProposal] = useState<SignedWorldProposal | null>(null);
   const [cutsceneFor, setCutsceneFor] = useState<string | null>(null);
+  const [cutsceneVisitors, setCutsceneVisitors] = useState<CutsceneVisitor[]>([]);
+  const citizenVoices = useCitizenVoices(snapshot, proposal);
   const proposalRef = useRef<SignedWorldProposal | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
   const busyRef = useRef(false);
@@ -159,6 +162,7 @@ export function OpenWorld() {
     const decision = kind === "advance" ? "Lass ein Quartal verstreichen und analysiere die Entwicklung des Landes, offene Konflikte und die Folgen meiner bisherigen Entscheidungen." : draft.trim();
     if (!decision) { setError("Sag zuerst, was du in deinem Land verändern möchtest."); decisionInput.current?.focus(); return; }
     busyRef.current = true; setBusy("analyze"); setError(""); updateProposal(null); setReceipt(null);
+    citizenVoices.cancel();
     const requestEpoch = epoch.current;
     try {
       const next = await requestJson<SignedWorldProposal>("/api/simulation/analyze", { snapshot: current, decision, kind });
@@ -167,7 +171,10 @@ export function OpenWorld() {
       if (!worldProposalSchema.safeParse(next.proposal).success) throw new Error("Die Analyse ist nicht vollständig oder enthält unlesbare Folgen. Bitte erneut anfordern; es wurde nichts beschlossen.");
       if (next.proposal.worldId !== current.state.id || next.proposal.baseRevision !== current.state.revision) throw new Error("Diese Analyse gehört nicht zu deinem aktuellen Spielstand. Bitte erneut anfordern.");
       setNow(Date.now()); updateProposal(next); setScreen("desk");
-      if (buildVisitors(next.proposal.analysis).length) setCutsceneFor(next.proposal.id);
+      citizenVoices.start(current, next);
+      const visitors = buildVisitors(next.proposal.analysis);
+      setCutsceneVisitors(visitors);
+      if (visitors.length) setCutsceneFor(next.proposal.id);
     } catch (cause) { if (epoch.current === requestEpoch) setError(cause instanceof Error ? cause.message : "Die Modellanalyse ist fehlgeschlagen. Es wurde nichts beschlossen."); }
     finally { busyRef.current = false; setBusy(null); }
   }
@@ -277,7 +284,7 @@ export function OpenWorld() {
             {error && !proposal && <PixelNotice error>{error}</PixelNotice>}
             <details className="pixel-details"><summary>Beispielideen</summary><div className="mt-3 flex flex-wrap gap-2">{examples.map((text, index) => <PixelButton key={text} size="sm" variant="secondary" disabled={!!busy} onClick={() => fillDraft(text)}>{["Döner für 2 €", "Kostenlose Bahnen", "Vier-Tage-Woche"][index]}</PixelButton>)}</div></details>
           </PixelCard>
-          {busy === "analyze" && <p className="flex items-center gap-3 text-sm" role="status"><ProfessorIgel bob={false} size={40} />Folgen und Bürgerstimmen werden ermittelt …</p>}
+          {busy === "analyze" && <p className="flex items-center gap-3 text-sm" role="status"><ProfessorIgel bob={false} size={40} />Folgen werden analysiert …</p>}
           {proposal && <section ref={analysisPanel} tabIndex={-1} className="scroll-mt-5" aria-labelledby="analysis-title"><PixelCard tone="blue" className="space-y-5"><p className="font-pixel text-sm uppercase">Vorschau · noch kein Beschluss</p><h2 id="analysis-title" className="font-pixel text-balance text-3xl">{proposal.proposal.analysis.title}</h2><blockquote className="border-l-4 border-[var(--px-blue-dark)] pl-4 text-sm">{proposal.proposal.decision}</blockquote><p className="leading-relaxed">{proposal.proposal.analysis.interpretation}</p><details className="pixel-details"><summary>Begründung</summary><p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">{proposal.proposal.analysis.analysis}</p></details>
             <AnalysisDetails analysis={proposal.proposal.analysis} onConcept={openConcept} onRemember={remember} rememberedIds={rememberedIds} />
             <div className="flex flex-wrap gap-3 border-t-2 border-[var(--px-blue-dark)] pt-4"><PixelButton variant="info" disabled={!!busy || expired} onClick={() => void commit()}>{busy === "commit" ? "Wird übernommen …" : proposal.proposal.kind === "advance" ? "Quartal abschließen" : "Beschluss bestätigen"}</PixelButton><PixelButton variant="secondary" disabled={!!busy} onClick={() => { updateProposal(null); decisionInput.current?.focus(); }}>Ändern</PixelButton></div>
@@ -286,7 +293,11 @@ export function OpenWorld() {
           </PixelCard></section>}
           {!proposal && <div className="flex justify-end"><PixelButton size="sm" variant="secondary" disabled={!!busy} onClick={() => void analyze("advance")}>Ein Quartal weiter →</PixelButton></div>}
           {!proposal && state.lastAnalysis && <details className="pixel-details border-[length:var(--px-border)] border-[var(--px-ink)] bg-[var(--px-white)] p-4"><summary>Dein letzter Beschluss: {state.lastAnalysis.title}</summary><div className="mt-5 space-y-5"><p>{state.lastAnalysis.analysis}</p><AnalysisDetails analysis={state.lastAnalysis} onConcept={openConcept} onRemember={remember} rememberedIds={rememberedIds} /></div></details>}
-          <PeopleBar reactions={proposal?.proposal.analysis.characterReactions ?? state.lastAnalysis?.characterReactions} caption={proposal ? "Bürgerstimmen · Vorschau" : state.lastAnalysis?.characterReactions?.length ? `Zu: ${state.lastAnalysis.title}` : "Bürgerstimmen"} />
+          <PeopleBar reactions={citizenVoices.reactions ?? proposal?.proposal.analysis.characterReactions ?? state.lastAnalysis?.characterReactions} pending={citizenVoices.pending} awaiting={citizenVoices.awaiting} onRetry={citizenVoices.canRetry ? citizenVoices.retry : undefined} onVisit={proposal || state.lastAnalysis ? () => {
+            const analysis = proposal?.proposal.analysis ?? state.lastAnalysis!;
+            setCutsceneVisitors(buildVisitors({ ...analysis, characterReactions: citizenVoices.reactions ?? analysis.characterReactions }));
+            setCutsceneFor(proposal?.proposal.id ?? "last");
+          } : undefined} caption={proposal ? "Bürgerstimmen · Vorschau" : state.lastAnalysis ? `Zu: ${state.lastAnalysis.title}` : "Bürgerstimmen"} />
           {!proposal && !!state.suggestions.length && <details className="pixel-details"><summary>Weitere Ideen</summary><div className="mt-3 grid gap-2">{state.suggestions.map((text, index) => <PixelButton key={`${index}:${text}`} variant="secondary" className="justify-between text-left font-body normal-case" disabled={!!busy} onClick={() => fillDraft(text)}>{text}<span aria-hidden="true">↗</span></PixelButton>)}</div></details>}
         </div>
         <aside className="min-w-0 space-y-5" aria-label="Dein Land im Überblick">
@@ -301,7 +312,7 @@ export function OpenWorld() {
           {voiceConfigured && tutorOpen && <VoicePanel pixel bridge={voiceBridge} contextVersion={`${state.id}:${state.revision}:${proposal?.proposal.id ?? "none"}`} configured={voiceConfigured} onTranscript={(source, text) => { setTutorOpen(true); setMessages(previous => [...previous, { role: source === "user" ? "user" as const : "assistant" as const, text, source: "Sprachagent" }].slice(-24)); }} />}
         </PixelCard>
       </div>
-      {proposal && cutsceneFor === proposal.proposal.id && <Cutscene visitors={buildVisitors(proposal.proposal.analysis)} decision={proposal.proposal.kind === "advance" ? "Ein Quartal vergeht" : proposal.proposal.decision} caption={proposal.proposal.kind === "advance" ? "Die Zeit läuft" : "Deine Entscheidung"} onDone={() => setCutsceneFor(null)} />}
+      {cutsceneFor && (proposal && cutsceneFor === proposal.proposal.id || cutsceneFor === "last" && state.lastAnalysis) && <Cutscene visitors={cutsceneVisitors} decision={proposal?.proposal.decision ?? state.history.at(-1)?.decision ?? ""} onDone={() => setCutsceneFor(null)} />}
     </>}
 
     {screen === "balance" && state && <section className="space-y-6">{state.setup.vision && <p className="text-sm">Dein Ziel: „{state.setup.vision}“</p>}<PromiseTracks rows={promises} /><PixelCard className="space-y-5"><div className="flex items-center gap-3"><RichterFrosch bob={false} size={48} /><h3 className="font-pixel text-2xl">Wenn jemand anderes regiert</h3></div><p className="text-sm">Eine Person mit anderen Zielen übernimmt dieselben Befugnisse. Welche Regeln begrenzen sie?</p>

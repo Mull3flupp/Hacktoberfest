@@ -26,21 +26,25 @@ export type PeopleBarProps = {
   /** Kurze Überschrift über der Sprechblase, z. B. „Reaktionen auf deine Vorschau“ */
   caption?: string;
   className?: string;
+  pending?: CharacterId[];
+  awaiting?: boolean;
+  onRetry?: () => void;
+  onVisit?: () => void;
 };
 
 /**
  * Bürgerstimmen beim aktuellen Beschluss. Ein Klick wählt die Figur;
  * der Text wechselt nicht von selbst während des Lesens.
  */
-export function PeopleBar({ reactions = [], caption, className }: PeopleBarProps) {
+export function PeopleBar({ reactions = [], caption, className, pending = [], awaiting = false, onRetry, onVisit }: PeopleBarProps) {
   const byId = new Map(reactions.map((reaction) => [reaction.characterId, reaction]));
   const reactionKey = reactions.map((reaction) => `${reaction.characterId}:${reaction.quote}`).join("|");
   const [selected, setSelected] = useState<CharacterId>(characters[0].id);
   const [collapsed, setCollapsed] = useState(false);
 
-  // Neue Reaktionen beginnen bei der ersten Figur.
+  // Keep the chosen citizen while further voices arrive.
   useEffect(() => {
-    setSelected((reactions[0]?.characterId ?? characters[0].id) as CharacterId);
+    setSelected(current => characters.some(character => character.id === current) ? current : characters[0].id);
   }, [reactionKey]);
 
   const person = characters.find((character) => character.id === selected) ?? characters[0];
@@ -69,7 +73,7 @@ export function PeopleBar({ reactions = [], caption, className }: PeopleBarProps
               {person.name} <small>· {person.role}</small>
               {reaction && <span className={`people-stance people-stance--${reaction.stance}`}>{STANCES[reaction.stance].icon} {STANCES[reaction.stance].label}</span>}
             </strong>
-            <p>„{reaction?.quote ?? person.idle}“</p>
+            <p>{reaction ? `„${reaction.quote}“` : pending.includes(person.id) ? "Stimme lädt …" : awaiting ? "Noch keine Antwort erhalten." : `„${person.idle}“`}</p>
           </div>
           <ul className="people-bar__row">
             {characters.map((character) => {
@@ -91,6 +95,10 @@ export function PeopleBar({ reactions = [], caption, className }: PeopleBarProps
               );
             })}
           </ul>
+          {(awaiting || onVisit) && <div className="people-bar__status">
+            {awaiting && <span role="status">{reactions.length}/7 Stimmen{pending.length ? " · lädt …" : ""}</span>}
+            <div className="flex flex-wrap gap-2">{onRetry && <button type="button" className="people-bar__toggle" onClick={onRetry}>Fehlende erneut laden</button>}{onVisit && <button type="button" className="people-bar__toggle" onClick={onVisit}>Im Büro ansehen</button>}</div>
+          </div>}
         </div>
       )}
     </section>
