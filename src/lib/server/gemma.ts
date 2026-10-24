@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { concepts, getHistoryOutcomes, getScene, getSuccession } from "../game/engine";
 import type { ConceptCard, ConceptId, GameState, Narrative, TurnOutcome } from "../game/types";
+import { modelConfig as gemmaConfig, requestJsonModel } from "./gemma-client";
+
+export { gemmaConfig };
 
 const conceptIdSchema = z.enum([
   "social-contract", "popular-sovereignty", "separation-of-powers",
@@ -24,14 +27,6 @@ export interface TutorResponse {
   notice?: string;
 }
 
-export function gemmaConfig() {
-  return {
-    apiKey: process.env.GEMMA_API_KEY?.trim() || process.env.OPENROUTER_API_KEY?.trim(),
-    baseUrl: (process.env.GEMMA_BASE_URL?.trim() || "https://openrouter.ai/api/v1").replace(/\/$/, ""),
-    model: process.env.GEMMA_MODEL?.trim() || "google/gemma-3-27b-it",
-  };
-}
-
 const SYSTEM_PROMPT = `Du bist der deutschsprachige Tutor des fiktiven politischen Lernspiels „Wenn ich König von Deutschland wäre“.
 Nutze nur die mitgelieferten geprüften Wissenskarten und den vom Regelmodul berechneten Zustand.
 Spielwerte sind erfundene Indizes, keine Prognosen. Du darfst keine Kennzahlen, Institutionen, Entscheidungen oder neuen Spielregeln ändern oder erfinden.
@@ -44,36 +39,7 @@ Antworte knapp und verständlich ausschließlich als JSON im angeforderten Forma
 Verwende ausschließlich die erlaubten Begriffs-IDs. Erfinde keine Quellen, Wahrscheinlichkeiten oder realen Geldbeträge.`;
 
 export async function complete<T>(task: string, data: unknown, schema: z.ZodType<T>): Promise<T> {
-  const config = gemmaConfig();
-  if (!config.apiKey) throw new Error("Provider not configured");
-  const response = await fetch(`${config.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      "Content-Type": "application/json",
-      "X-OpenRouter-Title": "Wenn ich König von Deutschland wäre",
-    },
-    body: JSON.stringify({
-      model: config.model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: `${task}\n\nKontext:\n${JSON.stringify(data)}` },
-      ],
-      temperature: 0.3,
-      max_tokens: 900,
-      response_format: { type: "json_object" },
-    }),
-    signal: AbortSignal.timeout(15_000),
-    cache: "no-store",
-  });
-  if (!response.ok) throw new Error("Provider unavailable");
-  const text = await response.text();
-  if (text.length > 32_768) throw new Error("Provider response too large");
-  const envelope = z.object({
-    choices: z.array(z.object({ message: z.object({ content: z.string().max(16_000) }) })).min(1),
-  }).parse(JSON.parse(text));
-  const content = envelope.choices[0].message.content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-  return schema.parse(JSON.parse(content));
+  return requestJsonModel({ system: SYSTEM_PROMPT, task, data, schema, maxTokens: 900, temperature: 0.3 });
 }
 
 function knowledge(cards: ConceptCard[]) {

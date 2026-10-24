@@ -27,13 +27,13 @@ export function assertSameOrigin(request: Request) {
   }
 }
 
-export async function readJson(request: Request): Promise<unknown> {
+export async function readJson(request: Request, maxBytes = MAX_BODY_BYTES): Promise<unknown> {
   assertSameOrigin(request);
   if (!request.headers.get("content-type")?.includes("application/json")) {
     throw new ApiError(415, "Bitte JSON mit Content-Type application/json senden.");
   }
   const contentLength = Number(request.headers.get("content-length") || 0);
-  if (contentLength > MAX_BODY_BYTES) throw new ApiError(413, "Die Anfrage ist zu groß.");
+  if (contentLength > maxBytes) throw new ApiError(413, "Die Anfrage ist zu groß.");
   if (!request.body) throw new ApiError(400, "Die Anfrage enthält kein JSON.");
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -43,7 +43,7 @@ export async function readJson(request: Request): Promise<unknown> {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > MAX_BODY_BYTES) {
+      if (size > maxBytes) {
         await reader.cancel();
         throw new ApiError(413, "Die Anfrage ist zu groß.");
       }
