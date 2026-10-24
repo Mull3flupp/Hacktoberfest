@@ -17,7 +17,7 @@ export function MoodMeter({ value, label = "Zufriedenheit", className }: MoodMet
 
   return (
     <div className={cn("flex items-center gap-3", className)}>
-      <CitizenBlob mood={mood} color={BLOB_COLORS[0]} size={48} />
+      <CitizenBlob mood={mood} color={BLOB_COLORS[0]} size={48} bob={false} />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between">
           <span className="font-pixel text-sm uppercase">{label}</span>
@@ -41,7 +41,7 @@ export function MoodMeter({ value, label = "Zufriedenheit", className }: MoodMet
 }
 
 /** Dashboard-Dorf: mehrere Bürger-Blobs, deren Gesichter der Zufriedenheit folgen. */
-export function CitizenVillage({ value, count = 6, className }: { value: number; count?: number; className?: string }) {
+export function CitizenVillage({ value, count = 6, className, bob = true }: { value: number; count?: number; className?: string; bob?: boolean }) {
   return (
     <div
       className={cn(
@@ -60,6 +60,7 @@ export function CitizenVillage({ value, count = 6, className }: { value: number;
             mood={moodFromValue(value + spread)}
             color={BLOB_COLORS[i % BLOB_COLORS.length]}
             size={i % 2 ? 40 : 48}
+            bob={bob}
             className={i % 2 ? "[animation-delay:300ms]" : undefined}
           />
         );

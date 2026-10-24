@@ -27,10 +27,12 @@ export function MicButton({
   state = "idle",
   onClick,
   className,
+  label,
 }: {
   state?: MicState;
   onClick?: () => void;
   className?: string;
+  label?: string;
 }) {
   const recording = state === "recording";
   const disabled = state === "processing" || state === "unavailable";
@@ -44,7 +46,7 @@ export function MicButton({
         onClick={onClick}
         disabled={disabled}
         aria-pressed={recording}
-        aria-label={labels[state]}
+        aria-label={label ?? labels[state]}
         className={cn(
           "grid size-20 place-items-center border-[length:var(--px-border)] border-[var(--px-ink)]",
           "mb-[var(--px-shadow)] shadow-[0_var(--px-shadow)_0_var(--mic-shadow)]",
@@ -65,7 +67,7 @@ export function MicButton({
         </svg>
       </button>
       <span className="text-sm font-semibold" aria-hidden>
-        {labels[state]}
+        {label ?? labels[state]}
       </span>
     </div>
   );

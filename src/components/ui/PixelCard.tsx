@@ -12,7 +12,7 @@ export const toneSurface: Record<PixelTone, string> = {
   purple: "bg-[var(--px-purple-light)]",
 };
 
-export type PixelCardProps = HTMLAttributes<HTMLDivElement> & {
+export type PixelCardProps = Omit<HTMLAttributes<HTMLDivElement>, "title"> & {
   tone?: PixelTone;
   title?: ReactNode;
   /** kleine Zeile über dem Titel, z. B. "Szene 1/3" */
