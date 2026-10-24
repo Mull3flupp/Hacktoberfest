@@ -98,7 +98,6 @@ export function IntroSlides({ onDone }: IntroSlidesProps) {
             {last ? "Ins Parlament ▸" : "Weiter ▸"}
           </button>
         </div>
-        <p className="intro__note">Fiktive Simulation: Land, Personen, Ereignisse und Zahlen sind ausgedacht.</p>
       </div>
     </div>
   );
