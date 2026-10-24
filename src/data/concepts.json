@@ -1,0 +1,125 @@
+[
+  {
+    "id": "social-contract",
+    "title": "Gesellschaftsvertrag",
+    "explanation": "Ein Gedankenexperiment: Menschen begründen gemeinsam verbindliche Regeln und staatliche Herrschaft. Hobbes betont Schutz vor Unsicherheit durch einen starken Souverän; Locke verbindet legitime Herrschaft mit dem Schutz vorstaatlicher Rechte und begrenzter Macht.",
+    "limitation": "Es ist kein historisch unterschriebener Vertrag. Keine der drei Spieloptionen bildet eine vollständige Philosophie ab; die Denker hatten zudem historische Ausschlüsse, die heutigen gleichen Menschenrechten nicht entsprechen.",
+    "sources": [
+      { "title": "bpb: Gesellschaftsvertrag", "url": "https://www.bpb.de/kurz-knapp/lexika/politiklexikon/296361/gesellschaftsvertrag/" },
+      { "title": "bpb: Wege zur modernen Demokratie – Locke", "url": "https://www.bpb.de/shop/zeitschriften/izpb/demokratie-332/248555/wege-zur-modernen-demokratie/" }
+    ],
+    "understanding": {
+      "question": "Welche Frage stellt die Idee des Gesellschaftsvertrags?",
+      "options": ["Wie lässt sich verbindliche politische Herrschaft begründen?", "Wie maximiert ein Staat automatisch sein Budget?", "Welcher Herrscher ist persönlich am sympathischsten?"],
+      "correctIndex": 0,
+      "explanation": "Der Gesellschaftsvertrag fragt nach der Begründung von Herrschaft und den Bedingungen des Zusammenlebens, nicht nach einem garantierten wirtschaftlichen Ergebnis."
+    },
+    "transfer": {
+      "question": "Eine Gründerin verspricht Sicherheit und verlangt unbegrenzte Befugnisse. Welche Rückfrage prüft den Vertrag kritisch?",
+      "options": ["Ist ihr Titel beeindruckend?", "Welche Rechte behalten die Menschen, und wer kontrolliert ihre Befugnisse?", "Wie hoch ist ihre Beliebtheit heute?"],
+      "correctIndex": 1,
+      "explanation": "Sicherheitsversprechen beantworten noch nicht, welche Rechte geschützt und welche Machtgrenzen verbindlich sind."
+    }
+  },
+  {
+    "id": "popular-sovereignty",
+    "title": "Volkssouveränität",
+    "explanation": "Die politische Herrschaft soll vom Volk legitimiert werden. Das kann über gewählte Vertretungen und über Abstimmungen geschehen. Eine Berufung auf das Volk allein ersetzt weder offene Beteiligung noch Rechenschaft.",
+    "limitation": "Mehrheitsentscheidungen können Minderheiten benachteiligen. Volkssouveränität braucht Regeln für gleiche Beteiligung und lässt Grundrechte nicht automatisch entstehen.",
+    "sources": [ { "title": "Grundgesetz, Artikel 20 Absatz 2", "url": "https://www.gesetze-im-internet.de/gg/art_20.html" } ],
+    "understanding": {
+      "question": "Worauf bezieht sich Volkssouveränität?",
+      "options": ["Auf die lebenslange Amtszeit der Gründungsfigur", "Auf die höchste Zufriedenheit im Spiel", "Auf das Volk als Grundlage politischer Legitimation"],
+      "correctIndex": 2,
+      "explanation": "Entscheidend ist die Legitimation vom Volk. Beliebtheit oder eine behauptete Vertretung des Volkswillens genügen dafür nicht."
+    },
+    "transfer": {
+      "question": "Eine Regierung sagt: Wir handeln für das Volk, deshalb brauchen wir keine Wahlen oder Abstimmungen. Was fehlt?",
+      "options": ["Ein Verfahren, in dem die Bevölkerung tatsächlich mitentscheiden und ihre Vertreter kontrollieren kann", "Ein größerer Palast", "Ein besserer Name für das Land"],
+      "correctIndex": 0,
+      "explanation": "Die Behauptung, für das Volk zu handeln, ist keine überprüfbare demokratische Legitimation."
+    }
+  },
+  {
+    "id": "separation-of-powers",
+    "title": "Gewaltenteilung",
+    "explanation": "Gesetzgebung, Regierung und Rechtsprechung werden auf unterschiedliche Stellen verteilt, die einander kontrollieren. Montesquieu ist ein wichtiger Bezugspunkt. Ein unabhängiges Gericht kann deshalb auch ein populäres Regierungsvorhaben begrenzen.",
+    "limitation": "Gewaltenteilung bedeutet nicht, dass die Gewalten niemals zusammenarbeiten. Kontrolle kann Zeit kosten und verhindert nicht jeden Fehler.",
+    "sources": [ { "title": "bpb: Gewaltenteilung", "url": "https://www.bpb.de/themen/deutsche-einheit/lange-wege-der-deutschen-einheit/501176/gewaltenteilung/" } ],
+    "understanding": {
+      "question": "Welcher Zweck gehört zur Gewaltenteilung?",
+      "options": ["Jede Entscheidung schneller zu machen", "Macht durch gegenseitige Kontrolle zu begrenzen", "Gerichte der Regierung zu unterstellen"],
+      "correctIndex": 1,
+      "explanation": "Die Verteilung der staatlichen Funktionen soll Machtmissbrauch erschweren. Schnelligkeit ist kein garantiertes Ergebnis."
+    },
+    "transfer": {
+      "question": "Ein Gericht stoppt dein Wohnungsprojekt. Welche Reaktion erhält die Gewaltenteilung?",
+      "options": ["Die Richter wegen des unerwünschten Urteils austauschen", "Alle zukünftigen Urteile ignorieren", "Den Plan rechtlich überarbeiten und vorgesehene Rechtsmittel nutzen"],
+      "correctIndex": 2,
+      "explanation": "Eine rechtliche Überarbeitung respektiert unabhängige Kontrolle. Ein gewünschtes Ergebnis durch Druck auf Richter zu erzwingen untergräbt sie."
+    }
+  },
+  {
+    "id": "rule-of-law",
+    "title": "Rechtsstaat",
+    "explanation": "Auch die Regierung ist an Recht und Grundrechte gebunden. Menschen können staatliche Eingriffe von unabhängigen Gerichten überprüfen lassen. Eine Maßnahme wird nicht allein dadurch rechtsstaatlich, dass die Regierung sie ein Gesetz nennt.",
+    "limitation": "Rechtsschutz benötigt zugängliche Verfahren und unabhängige Institutionen. Ein Versprechen auf dem Papier bietet noch keine wirksame Beschwerdemöglichkeit.",
+    "sources": [ { "title": "bpb: Rechtsstaat", "url": "https://www.bpb.de/kurz-knapp/lexika/lexikon-in-einfacher-sprache/250054/rechtsstaat/" } ],
+    "understanding": {
+      "question": "Wer ist im Rechtsstaat an Recht gebunden?",
+      "options": ["Auch die Regierung und die Behörden", "Nur die Opposition", "Nur Menschen ohne öffentliches Amt"],
+      "correctIndex": 0,
+      "explanation": "Die staatliche Macht selbst muss rechtlich begrenzt und überprüfbar sein."
+    },
+    "transfer": {
+      "question": "Ein befristetes Sonderverfahren beschleunigt den Wohnungsbau. Welche Sicherung ist entscheidend?",
+      "options": ["Die Regierung darf es heimlich verlängern", "Betroffene können unabhängig klagen, und die Befugnis endet überprüfbar", "Nur regierungstreue Menschen dürfen sich beschweren"],
+      "correctIndex": 1,
+      "explanation": "Befristung, klar begrenzte Befugnisse und unabhängiger Rechtsschutz unterscheiden ein kontrolliertes Verfahren von einer Blankovollmacht."
+    }
+  },
+  {
+    "id": "minority-rights",
+    "title": "Minderheitenschutz",
+    "explanation": "Menschen behalten gleiche Rechte, auch wenn ihre Gruppe oder Meinung unpopulär ist. Meinungsfreiheit schützt grundsätzlich auch Regierungskritik. Konkrete Rechtsverstöße können anhand allgemeiner Regeln geprüft werden; bloße Unbeliebtheit rechtfertigt keine pauschale Unterdrückung.",
+    "limitation": "Meinungsfreiheit ist nicht grenzenlos. Einschränkungen benötigen eine rechtliche Grundlage, einen konkreten Grund und unabhängige Prüfung; die politische Präferenz einer Lernantwort wird nicht bewertet.",
+    "sources": [
+      { "title": "Grundgesetz, Artikel 3: Gleichheit", "url": "https://www.gesetze-im-internet.de/gg/art_3.html" },
+      { "title": "Grundgesetz, Artikel 5: Meinungsfreiheit und Grenzen", "url": "https://www.gesetze-im-internet.de/gg/art_5.html" }
+    ],
+    "understanding": {
+      "question": "Warum bleiben Grundrechte einer unpopulären Minderheit relevant?",
+      "options": ["Nur weil diese Minderheit später die Mehrheit werden könnte", "Weil jede Äußerung immer erlaubt ist", "Weil gleiche Rechte nicht von Beliebtheit abhängen"],
+      "correctIndex": 2,
+      "explanation": "Gleiche Rechte gelten unabhängig von Zustimmung. Konkrete Rechtsverstöße dürfen trotzdem rechtsstaatlich geprüft werden."
+    },
+    "transfer": {
+      "question": "Die Mehrheit verlangt ein Verbot einer friedlichen Demonstration, weil sie die Meinung ablehnt. Welche Unterscheidung fehlt?",
+      "options": ["Zwischen unbeliebter Meinung und konkret nachweisbarem Rechtsverstoß", "Zwischen großen und kleinen Plakaten", "Zwischen hohem und niedrigem Staatsbudget"],
+      "correctIndex": 0,
+      "explanation": "Mehrheitliche Ablehnung ist für sich genommen kein Nachweis eines Rechtsverstoßes."
+    }
+  },
+  {
+    "id": "peaceful-transfer",
+    "title": "Friedlicher Machtwechsel",
+    "explanation": "Regierende müssen ihr Amt unter verlässlichen Regeln auch verlieren können. Freie Wahlen, faire Konkurrenz und die Anerkennung des Ergebnisses ermöglichen einen Wechsel ohne Gewalt. Im Nachfolgetest zählt daher, ob auch eine andere Person begrenzt und abgelöst werden könnte.",
+    "limitation": "Eine Wahl allein garantiert keinen fairen Wechsel. Wenn Opposition und freie Information unterdrückt werden oder die Amtsübergabe verweigert wird, fehlt eine wesentliche Voraussetzung.",
+    "sources": [
+      { "title": "bpb: Demokratie – freie Wahlen und Regierungswechsel", "url": "https://www.bpb.de/kurz-knapp/lexika/lexikon-in-einfacher-sprache/249836/demokratie/" },
+      { "title": "Grundgesetz, Artikel 38: Wahlgrundsätze", "url": "https://www.gesetze-im-internet.de/gg/art_38.html" }
+    ],
+    "understanding": {
+      "question": "Was ist für einen friedlichen demokratischen Machtwechsel wesentlich?",
+      "options": ["Dass immer dieselbe Person gewinnt", "Dass Regierende unter fairen Regeln abgelöst werden können", "Dass jede Entscheidung einstimmig ist"],
+      "correctIndex": 1,
+      "explanation": "Demokratischer Wettbewerb schließt die Möglichkeit ein, dass die amtierende Regierung verliert und das Ergebnis anerkennt."
+    },
+    "transfer": {
+      "question": "Dein Nachfolger übernimmt deine Befugnisse und will nicht gehen. Welche Regel begrenzt ihn wirksam?",
+      "options": ["Ein persönliches Versprechen an dich", "Eine besonders hohe Zufriedenheit", "Freie Konkurrenz, feste Amts- und Abwahlregeln und unabhängige Kontrolle"],
+      "correctIndex": 2,
+      "explanation": "Institutionen müssen auch funktionieren, wenn die Person im Amt nicht wohlwollend ist."
+    }
+  }
+]

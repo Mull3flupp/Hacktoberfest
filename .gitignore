@@ -1,1 +1,11 @@
 .DS_Store
+node_modules/
+.next/
+next-env.d.ts
+out/
+.env*
+!.env.example
+coverage/
+*.tsbuildinfo
+playwright-report/
+test-results/

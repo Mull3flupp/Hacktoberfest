@@ -1,0 +1,131 @@
+[
+  {
+    "id": "constitution",
+    "title": "Eine Verfassung entsteht",
+    "intro": "Du gründest ein fiktives Land mit 100.000 Menschen, begrenzten Ressourcen und wenig Erfahrung mit demokratischen Verfahren. Du hast vorläufige Befugnisse. Wer darf künftig verbindliche Entscheidungen treffen und dich kontrollieren?",
+    "conceptIds": ["social-contract", "popular-sovereignty"],
+    "options": [
+      {
+        "id": "autocracy",
+        "label": "Lebenslange Alleinregierung",
+        "description": "Du entscheidest allein. Es entstehen weder ein Parlament noch unabhängige Gerichte; Kritik bleibt vorerst geduldet. Einen geregelten Weg zu deiner Abwahl gibt es nicht.",
+        "effects": { "satisfaction": 8, "budget": 5 },
+        "consequence": "Die schnelle Handlungsfähigkeit kommt im Szenario zunächst gut an. Institutionelle Kontrolle und ein geregelter Machtwechsel fehlen aber.",
+        "explanation": "Hobbes rückt Sicherheit durch einen starken Souverän ins Zentrum. Locke fragt zusätzlich nach Rechten und Grenzen der Regierung. Deine Wahl greift einen Konflikt auf, ist aber keine vollständige Umsetzung einer dieser Theorien.",
+        "reflection": "Würdest du dieselben Befugnisse auch einer Person geben, der du nicht vertraust?",
+        "actorReactions": ["Eine Ladenbesitzerin begrüßt schnelle Entscheidungen.", "Eine Bürgerinitiative fragt nach Schutz vor deinen Fehlern."],
+        "institutionChanges": { "government": "autocracy", "independentCourts": false, "freeElections": false, "rightsProtected": false, "oppositionAllowed": true, "emergencyPowers": "unchecked" },
+        "delayedEffect": { "afterTurns": 1, "description": "Ohne verbindliche Mitsprache bleibt ein Konflikt zunächst ungelöst; die Zufriedenheit sinkt etwas.", "effects": { "satisfaction": -4 } }
+      },
+      {
+        "id": "parliament",
+        "label": "Ein gewähltes Parlament",
+        "description": "Freie Wahlen bestimmen ein Parlament, das Regierung und Haushalt kontrolliert. Eine Grundrechtsverfassung und unabhängige Gerichte werden eingerichtet. Du kannst dein Regierungsamt verlieren.",
+        "effects": { "satisfaction": -3, "budget": -10 },
+        "consequence": "Der Aufbau der Verfahren kostet Zeit und Budget. Dafür können Menschen ihre Vertretung austauschen und staatliche Entscheidungen unabhängig anfechten.",
+        "explanation": "Volkssouveränität kann durch gewählte Vertretungen ausgeübt werden. Verbindliche Rechte begrenzen Mehrheiten. Lockes begrenzte Regierung ist ein Bezugspunkt; heutige parlamentarische Demokratie ist nicht mit seiner gesamten Lehre gleichzusetzen.",
+        "reflection": "Welche Entscheidung solltest du auch dann nicht allein treffen dürfen, wenn du fest an sie glaubst?",
+        "actorReactions": ["Die Verwaltung rechnet mit aufwendigen ersten Wahlen.", "Eine Oppositionsgruppe bereitet ihre Kandidatur vor."],
+        "institutionChanges": { "government": "parliament", "independentCourts": true, "freeElections": true, "rightsProtected": true, "oppositionAllowed": true, "emergencyPowers": "none" },
+        "delayedEffect": { "afterTurns": 1, "description": "Die neue Beteiligung verschafft zuvor übersehenen Anliegen Gehör; im Szenario steigt die Zufriedenheit.", "effects": { "satisfaction": 5 } }
+      },
+      {
+        "id": "direct",
+        "label": "Direkte Abstimmungen",
+        "description": "Die Bevölkerung entscheidet über Gesetze. Eine frei gewählte und abwählbare Verwaltung setzt sie um. Grundrechte und unabhängige Gerichte begrenzen auch Abstimmungsmehrheiten; ein Parlament entsteht nicht.",
+        "effects": { "satisfaction": 3, "budget": -12 },
+        "consequence": "Viele freuen sich über direkte Mitsprache. Gute Information und die Organisation häufiger Abstimmungen kosten jedoch Ressourcen.",
+        "explanation": "Volkssouveränität kann auch durch direkte Abstimmungen ausgeübt werden. Eine Mehrheit macht einen Eingriff in Grundrechte nicht automatisch legitim. Repräsentation und direkte Beteiligung haben unterschiedliche organisatorische Kosten.",
+        "reflection": "Wie erhalten Menschen mit wenig Zeit oder geringem Zugang zu Informationen eine faire Stimme?",
+        "actorReactions": ["Eine Initiative freut sich über unmittelbare Mitsprache.", "Eine Pflegerin sorgt sich um die Zeit für viele Abstimmungen."],
+        "institutionChanges": { "government": "direct", "independentCourts": true, "freeElections": true, "rightsProtected": true, "oppositionAllowed": true, "emergencyPowers": "none" },
+        "delayedEffect": { "afterTurns": 1, "description": "Ein zusätzliches Informations- und Abstimmungsverfahren beansprucht das Staatsbudget.", "effects": { "budget": -4 } }
+      }
+    ]
+  },
+  {
+    "id": "housing",
+    "title": "Wohnungsnot und ein unbequemes Gericht",
+    "intro": "Wohnraum ist knapp. Dein Bauprogramm würde Wohnungen schaffen, missachtet aber bestehende Schutzregeln für Betroffene. Das unabhängige Gericht stoppt den aktuellen Plan. Wie reagierst du?",
+    "conceptIds": ["separation-of-powers", "rule-of-law"],
+    "options": [
+      {
+        "id": "legal",
+        "label": "Plan rechtskonform überarbeiten",
+        "description": "Du passt den Bauplan an, hörst Betroffene an und akzeptierst die unabhängige rechtliche Prüfung.",
+        "effects": { "satisfaction": -5, "budget": -8 },
+        "consequence": "Das Bauen verzögert sich. Betroffene erhalten Rechtsschutz; der überarbeitete Plan kann danach umgesetzt werden.",
+        "explanation": "Gewaltenteilung verteilt Macht und ermöglicht Kontrolle. Im Rechtsstaat ist auch die Regierung an Recht gebunden. Das garantiert keine schnellen oder immer beliebten Entscheidungen, schafft aber einen Weg, Eingriffe prüfen zu lassen.",
+        "reflection": "Welchen Preis in Zeit und Ressourcen hältst du für unabhängigen Rechtsschutz für vertretbar?",
+        "actorReactions": ["Wohnungssuchende kritisieren die Verzögerung.", "Betroffene begrüßen, dass ihre Einwände geprüft werden."],
+        "institutionChanges": { "independentCourts": true, "rightsProtected": true, "emergencyPowers": "none" },
+        "delayedEffect": { "afterTurns": 1, "description": "Der überarbeitete Wohnungsbau wird wirksam: Der fiktive Wohnkostenindex sinkt.", "effects": { "housingCost": -12, "satisfaction": 4 } }
+      },
+      {
+        "id": "emergency",
+        "label": "Kontrolliertes Sonderverfahren",
+        "description": "Ein öffentlich beschlossenes Sonderverfahren beschleunigt den Bau. Es endet automatisch nach der Bauphase; unabhängige Gerichte können jeden Eingriff prüfen. Grundrechte bleiben verbindlich.",
+        "effects": { "satisfaction": 4, "housingCost": -8, "budget": -16 },
+        "consequence": "Wohnraum entsteht früher, aber die beschleunigte Umsetzung und zusätzliche Kontrolle kosten mehr Budget. Befugnisse bleiben begrenzt und anfechtbar.",
+        "explanation": "Ein Sonderverfahren ist nicht automatisch rechtswidrig oder unkontrolliert. Entscheidend sind klare Grenzen, wirksamer Rechtsschutz und ein überprüfbares Ende. Montesquieus Machtkontrolle bleibt auch bei Zeitdruck relevant.",
+        "reflection": "Wer überprüft tatsächlich, dass die Sonderbefugnis endet, wenn sie deiner Nachfolgeperson bequem geworden ist?",
+        "actorReactions": ["Wohnungssuchende begrüßen den früheren Baustart.", "Die Haushaltsprüfung warnt vor den Zusatzkosten."],
+        "institutionChanges": { "independentCourts": true, "rightsProtected": true, "emergencyPowers": "limited" },
+        "delayedEffect": { "afterTurns": 1, "description": "Die zeitlich begrenzte Bauphase endet; für Prüfung und Abrechnung fallen weitere Budgetpunkte an.", "effects": { "budget": -4 } }
+      },
+      {
+        "id": "override",
+        "label": "Gerichtliche Kontrolle ausschalten",
+        "description": "Du setzt den Plan ohne unabhängige Klage- und Kontrollmöglichkeit durch. Die Ausnahme ist weder wirksam begrenzt noch unabhängig überprüfbar.",
+        "effects": { "satisfaction": 9, "housingCost": -16, "budget": -8 },
+        "consequence": "Der schnelle Bau gewinnt im Szenario kurzfristig Zustimmung. Betroffene verlieren jedoch die unabhängige Möglichkeit, rechtswidrige Eingriffe stoppen zu lassen.",
+        "explanation": "Ein günstigeres Wohnangebot ersetzt keinen Rechtsschutz. Wenn die Regierung selbst endgültig über Beschwerden gegen ihre Eingriffe entscheidet, fehlt eine wesentliche Machtbegrenzung. Derselbe Mechanismus steht später einer anderen Person offen.",
+        "reflection": "Was könnten Betroffene tun, wenn deine Nachfolgeperson diese Befugnis gegen sie nutzt?",
+        "actorReactions": ["Ein Teil der Wohnungssuchenden lobt das schnelle Ergebnis.", "Eine betroffene Familie hat keine unabhängige Beschwerdestelle mehr."],
+        "institutionChanges": { "independentCourts": false, "rightsProtected": false, "emergencyPowers": "unchecked" },
+        "delayedEffect": { "afterTurns": 1, "description": "Nicht angehörte Betroffene verlieren Vertrauen; die Zufriedenheit sinkt im späteren Konflikt.", "effects": { "satisfaction": -7 } }
+      }
+    ]
+  },
+  {
+    "id": "protest",
+    "title": "Eine unpopuläre Minderheit protestiert",
+    "intro": "Eine kleine, unpopuläre Gruppe kritisiert deine Politik auf einer friedlichen Demonstration. Viele verlangen ein Verbot. Einzelnen Teilnehmenden werden konkrete Rechtsverstöße vorgeworfen; die Vorwürfe sind bisher ungeprüft.",
+    "conceptIds": ["minority-rights", "peaceful-transfer"],
+    "options": [
+      {
+        "id": "dialogue",
+        "label": "Kritik zulassen und antworten",
+        "description": "Du schützt den friedlichen Protest, antwortest öffentlich und hältst Kritik und konkrete Rechtsverstöße auseinander. Niemand wird allein wegen seiner Meinung ausgeschlossen.",
+        "effects": { "satisfaction": -4, "budget": -3 },
+        "consequence": "Ein Teil der Mehrheit ärgert sich über die geduldete Kritik. Die Minderheit kann weiter sprechen und sich organisieren. Offene Opposition bleibt möglich.",
+        "explanation": "Minderheitenschutz bindet Rechte nicht an Beliebtheit. Freie Kritik ermöglicht Kontrolle und politischen Wettbewerb. Konkrete Rechtsverstöße können weiterhin nach allgemeinen Regeln geprüft werden; Kritik allein ist kein Rechtsverstoß.",
+        "reflection": "Würdest du dieses Recht auch einer Gruppe zugestehen, deren Ansichten du entschieden ablehnst?",
+        "actorReactions": ["Die Demonstrierenden können ihre Kritik öffentlich erklären.", "Ein Teil der Mehrheit hätte eine härtere Reaktion bevorzugt."],
+        "institutionChanges": { "rightsProtected": true, "oppositionAllowed": true }
+      },
+      {
+        "id": "investigate",
+        "label": "Konkrete Vorwürfe unabhängig prüfen",
+        "description": "Du lässt nur konkret behauptete Rechtsverstöße anhand allgemeiner Gesetze unabhängig prüfen. Die friedliche Demonstration bleibt erlaubt, und Betroffene können Rechtsmittel nutzen.",
+        "effects": { "satisfaction": 1, "budget": -7 },
+        "consequence": "Die Prüfung kostet Zeit und Budget. Friedliche Kritik bleibt geschützt; über konkrete Vorwürfe entscheidet eine unabhängige Stelle anhand nachvollziehbarer Regeln.",
+        "explanation": "Rechtsstaatliche Prüfung unterscheidet eine unbeliebte Meinung von einem belegten Rechtsverstoß. Auch Minderheiten sind an allgemeine Gesetze gebunden; pauschale Schuldzuweisungen ersetzen keine Prüfung.",
+        "reflection": "Wie verhinderst du, dass vage Vorwürfe zur Einschüchterung von Kritikern eingesetzt werden?",
+        "actorReactions": ["Angehörige der Minderheit verlangen faire Beweise.", "Die unabhängige Prüfung betont, dass ein Vorwurf noch keine erwiesene Tat ist."],
+        "institutionChanges": { "independentCourts": true, "rightsProtected": true, "oppositionAllowed": true }
+      },
+      {
+        "id": "ban",
+        "label": "Protest pauschal verbieten",
+        "description": "Du verbietest die Demonstration wegen ihrer unpopulären Meinung und schließt die Gruppe vom offenen politischen Wettbewerb aus.",
+        "effects": { "satisfaction": 7, "budget": -4 },
+        "consequence": "Die Mehrheit begrüßt im Szenario zunächst Ruhe. Meinungsfreiheit und faire politische Konkurrenz werden aber eingeschränkt; eine freie Zustimmungsmessung ist nun nicht verlässlich.",
+        "explanation": "Mehrheitlicher Beifall macht den Entzug gleicher Rechte nicht unbedenklich. Wer Kritik und Opposition ausschließt, schwächt auch die Möglichkeit eines fairen Machtwechsels. Dieser Verlust wird getrennt von Zufriedenheit sichtbar.",
+        "reflection": "Wenn deine Nachfolgeperson dich zur unpopulären Minderheit erklärt: Welcher Schutz würde dir bleiben?",
+        "actorReactions": ["Ein Teil der Mehrheit begrüßt das Verbot.", "Die betroffene Gruppe verliert ihre öffentliche Stimme."],
+        "institutionChanges": { "rightsProtected": false, "oppositionAllowed": false, "freeElections": false }
+      }
+    ]
+  }
+]
