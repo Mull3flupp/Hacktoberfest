@@ -114,7 +114,8 @@ function placed(spot: Spot, count: number, maxWidth: number): CSSProperties {
 }
 
 export type CutsceneProps = {
-  visitors: CutsceneVisitor[];
+  /** null, solange die Analyse noch läuft: Das Büro ist schon zu sehen, die Besucher warten vor der Tür. */
+  visitors: CutsceneVisitor[] | null;
   /** Was entschieden werden soll, z. B. der eingegebene Satz */
   decision: string;
   /** „Deine Entscheidung“ oder „Die Zeit läuft“ */
@@ -122,17 +123,19 @@ export type CutsceneProps = {
   onDone: () => void;
 };
 
-type Phase = "title" | "walk" | "talk" | "final";
+type Phase = "title" | "waiting" | "walk" | "talk" | "final";
 
 /**
  * Zwischensequenz in Ego-Perspektive wie im Karrieremodus: Du sitzt am Schreibtisch,
  * die Tür geht auf und Besucher kommen nacheinander auf dich zu und sagen ihre Meinung.
  */
-export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", onDone }: CutsceneProps) {
+export function Cutscene({ visitors: incoming, decision, caption = "Deine Entscheidung", onDone }: CutsceneProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const reduced = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const visitors = incoming ?? [];
+  const afterTitle: Phase = incoming === null ? "waiting" : incoming.length ? "walk" : "final";
   const [index, setIndex] = useState(0);
-  const [phase, setPhase] = useState<Phase>(reduced ? (visitors.length ? "walk" : "final") : "title");
+  const [phase, setPhase] = useState<Phase>(reduced ? afterTitle : "title");
   const [arrived, setArrived] = useState(false);
   const [typed, setTyped] = useState(0);
   const current = visitors[index];
@@ -152,9 +155,14 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
   // Kurze Einblendung von Ort und Uhrzeit
   useEffect(() => {
     if (phase !== "title") return;
-    const timer = setTimeout(() => setPhase(visitors.length ? "walk" : "final"), 2200);
+    const timer = setTimeout(() => setPhase(afterTitle), 2200);
     return () => clearTimeout(timer);
-  }, [phase, visitors.length]);
+  }, [phase, afterTitle]);
+
+  // Sobald die Analyse fertig ist, kommen die wartenden Besucher herein.
+  useEffect(() => {
+    if (phase === "waiting" && incoming) setPhase(incoming.length ? "walk" : "final");
+  }, [phase, incoming]);
 
   // Tür auf, Besuch läuft von der Tür bis vor den Schreibtisch
   useEffect(() => {
@@ -185,13 +193,14 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
   }, [phase, quote, reduced]);
 
   const next = useCallback(() => {
-    if (phase === "title") { setPhase(visitors.length ? "walk" : "final"); return; }
+    if (phase === "title") { setPhase(afterTitle); return; }
+    if (phase === "waiting") return;
     if (phase === "final") { onDone(); return; }
     if (phase === "walk") { setArrived(true); setPhase("talk"); return; }
     if (typed < quote.length) { setTyped(quote.length); return; }
     if (index + 1 < visitors.length) { setIndex(index + 1); setPhase("walk"); }
     else setPhase("final");
-  }, [phase, typed, quote.length, index, visitors.length, onDone]);
+  }, [phase, afterTitle, typed, quote.length, index, visitors.length, onDone]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -204,7 +213,7 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
   }, [next, onDone]);
 
   const doorOpen = phase === "walk";
-  const shown = phase === "final" ? visitors : visitors.slice(0, index + (phase === "title" ? 0 : 1));
+  const shown = phase === "final" ? visitors : phase === "title" || phase === "waiting" ? [] : visitors.slice(0, index + 1);
   const finalSpots = phase === "final" ? lineup(visitors) : [];
   const tally = (["support", "oppose", "concern", "mixed"] as Stance[]).map((stance) => [stance, visitors.filter((visitor) => visitor.stance === stance).length] as const).filter(([, count]) => count > 0);
 
@@ -244,7 +253,12 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
 
       {phase !== "title" && (
         <div className="cut-dialog" aria-live="polite">
-          {phase === "final" ? (
+          {phase === "waiting" ? (
+            <div className="cut-dialog__body">
+              <p className="font-pixel cut-dialog__eyebrow">Gleich geht es los</p>
+              <p className="cut-dialog__text cut-dialog__text--stage">Vor der Tür warten schon Leute, die etwas zu deiner Idee sagen wollen<span className="cut-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></p>
+            </div>
+          ) : phase === "final" ? (
             <div className="cut-dialog__body">
               <h2 className="font-pixel cut-dialog__headline">Reaktionen</h2>
               {tally.length > 0 && <p className="cut-dialog__tally">{tally.map(([stance, count]) => <span key={stance} className={`cut-stance cut-stance--${stance}`}>{count}× {STANCES[stance].label}</span>)}</p>}
@@ -264,8 +278,8 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
             </>
           )}
           <div className="cut-dialog__controls">
-            <span className="cut-dialog__progress font-pixel">{phase === "final" ? "Fazit" : `${index + 1}/${visitors.length}`}</span>
-            <button type="button" className="cut-next font-pixel" onClick={next} autoFocus>{phase === "final" ? "Zur Entscheidung ▸" : "Weiter ▸"}</button>
+            <span className="cut-dialog__progress px-num">{phase === "final" ? "Fazit" : phase === "waiting" ? "" : `${index + 1}/${visitors.length}`}</span>
+            <button type="button" className="cut-next font-pixel" onClick={next} disabled={phase === "waiting"} autoFocus>{phase === "final" ? "Zur Entscheidung ▸" : "Weiter ▸"}</button>
           </div>
         </div>
       )}

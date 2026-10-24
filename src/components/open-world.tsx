@@ -10,14 +10,14 @@ import type { ConceptId, LearningProgress } from "@/lib/game/types";
 import { validateWorld, worldProposalSchema } from "@/lib/simulation/state";
 import type { SignedWorld, SignedWorldProposal, WorldCommit, WorldState } from "@/lib/simulation/types";
 import { LearningPanel } from "./learning-panel";
-import { Cutscene, buildVisitors, type CutsceneVisitor } from "./ui/Cutscene";
+import { Cutscene, buildVisitors } from "./ui/Cutscene";
 import { useCitizenVoices } from "./use-citizen-voices";
 import { PeopleBar } from "./ui/PeopleBar";
 import { VoicePanel, type VoiceBridge } from "./voice-panel";
 import { ProfessorVoice } from "./professor-voice";
 import { isMuted, playSoundEffect, setMuted, speakCharacter, speakProfessor, startBackgroundMusic, stopCurrentSpeech, subscribeMuted } from "@/lib/audio/manager";
 import { FeedbackSheet, Gruender, MoodMeter, PixelButton, PixelCard, ProfessorIgel, ProgressBar, RichterFrosch, SceneCard, cn } from "./ui";
-import { AnalysisDetails, EffectChips, InstitutionNotes, PixelNotice, WorldMetrics, format } from "./world-panels";
+import { AnalysisDetails, EffectChips, PixelNotice, WorldMetrics, format } from "./world-panels";
 
 type Screen = "setup" | "desk" | "balance" | "library" | "chronicle";
 type Busy = "start" | "analyze" | "commit" | null;
@@ -63,6 +63,9 @@ async function requestJson<T>(path: string, body: unknown): Promise<T> {
   return value as T;
 }
 
+/** So lange nach „Folgen analysieren“, bis die Zwischensequenz im Büro aufgeht */
+const CUTSCENE_DELAY = 10_000;
+
 export function OpenWorld() {
   const [ready, setReady] = useState(false);
   const [canPersist, setCanPersist] = useState(true);
@@ -74,10 +77,10 @@ export function OpenWorld() {
   const [screen, setScreen] = useState<Screen>("setup");
   const [draft, setDraft] = useState("");
   const [proposal, setProposal] = useState<SignedWorldProposal | null>(null);
-  const [cutsceneFor, setCutsceneFor] = useState<string | null>(null);
-  const [cutsceneVisitors, setCutsceneVisitors] = useState<CutsceneVisitor[]>([]);
+  // Zwischensequenz: startet CUTSCENE_DELAY nach dem Vorschlag; die Besucher kommen, sobald die Analyse da ist.
+  const [cutscene, setCutscene] = useState<{ open: boolean; decision: string; proposalId: string | null } | null>(null);
+  const cutsceneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const citizenVoices = useCitizenVoices(snapshot, proposal);
-  const voiceSignature = citizenVoices.reactions?.map(reaction => `${reaction.characterId}:${reaction.quote}`).join("\u0000") ?? "";
   const proposalRef = useRef<SignedWorldProposal | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
   const busyRef = useRef(false);
@@ -118,7 +121,7 @@ export function OpenWorld() {
     window.addEventListener("pointerdown", unlock, { once: true });
     window.addEventListener("keydown", unlock, { once: true });
     const timer = setInterval(() => setNow(Date.now()), 15_000);
-    return () => { clearInterval(timer); epoch.current += 1; unsubscribe(); window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); stopCurrentSpeech(); };
+    return () => { clearInterval(timer); if (cutsceneTimer.current) clearTimeout(cutsceneTimer.current); epoch.current += 1; unsubscribe(); window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); stopCurrentSpeech(); };
   }, []);
 
   useEffect(() => {
@@ -140,14 +143,6 @@ export function OpenWorld() {
   }, [ready, screen, setupStep]);
 
   useEffect(() => {
-    if (proposal && cutsceneFor === proposal.proposal.id && citizenVoices.reactions) {
-      setCutsceneVisitors(buildVisitors({ ...proposal.proposal.analysis, characterReactions: citizenVoices.reactions }));
-    }
-  // The hook returns a new array on each render; the signature changes only for a new line.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proposal?.proposal.id, cutsceneFor, voiceSignature]);
-
-  useEffect(() => {
     if (proposal && screen === "desk") analysisPanel.current?.scrollIntoView({ block: "start" });
   }, [proposal, screen]);
 
@@ -157,7 +152,8 @@ export function OpenWorld() {
   const promises = state ? promiseRows(state) : [];
 
   function updateProposal(next: SignedWorldProposal | null) { proposalRef.current = next; setProposal(next); }
-  function updateDraft(text: string) { setDraft(text.slice(0, 1500)); updateProposal(null); setError(""); }
+  function stopCutscene() { if (cutsceneTimer.current) clearTimeout(cutsceneTimer.current); setCutscene(null); }
+  function updateDraft(text: string) { stopCutscene(); setDraft(text.slice(0, 1500)); updateProposal(null); setError(""); }
   function fillDraft(text: string) {
     if (busyRef.current) return;
     updateDraft(text); setScreen("desk");
@@ -189,6 +185,11 @@ export function OpenWorld() {
     playSoundEffect("decision");
     citizenVoices.cancel();
     const requestEpoch = epoch.current;
+    if (cutsceneTimer.current) clearTimeout(cutsceneTimer.current);
+    if (kind === "decision") {
+      setCutscene({ open: false, decision, proposalId: null });
+      cutsceneTimer.current = setTimeout(() => setCutscene(previous => previous && { ...previous, open: true }), CUTSCENE_DELAY);
+    } else setCutscene(null);
     try {
       const next = await requestJson<SignedWorldProposal>("/api/simulation/analyze", { snapshot: current, decision, kind });
       if (epoch.current !== requestEpoch || snapshotRef.current?.state.revision !== current.state.revision) return;
@@ -197,10 +198,9 @@ export function OpenWorld() {
       if (next.proposal.worldId !== current.state.id || next.proposal.baseRevision !== current.state.revision) throw new Error("Diese Analyse gehört nicht zu deinem aktuellen Spielstand. Bitte erneut anfordern.");
       setNow(Date.now()); updateProposal(next); setScreen("desk");
       citizenVoices.start(current, next);
-      const visitors = buildVisitors(next.proposal.analysis);
-      setCutsceneVisitors(visitors);
-      if (visitors.length) setCutsceneFor(next.proposal.id);
-    } catch (cause) { if (epoch.current === requestEpoch) setError(cause instanceof Error ? cause.message : "Die Modellanalyse ist fehlgeschlagen. Es wurde nichts beschlossen."); }
+      if (kind === "decision" && buildVisitors(next.proposal.analysis).length) setCutscene(previous => previous && { ...previous, proposalId: next.proposal.id });
+      else stopCutscene();
+    } catch (cause) { stopCutscene(); if (epoch.current === requestEpoch) setError(cause instanceof Error ? cause.message : "Die Modellanalyse ist fehlgeschlagen. Es wurde nichts beschlossen."); }
     finally { busyRef.current = false; setBusy(null); }
   }
 
@@ -291,7 +291,7 @@ export function OpenWorld() {
     {error && screen !== "desk" && <PixelNotice error>{error}</PixelNotice>}
 
     {screen === "setup" && <div className="mx-auto max-w-2xl py-3 sm:py-6">
-      <PixelCard id="world-setup" className="scroll-mt-5 space-y-5"><div className="flex items-center justify-between gap-4"><h2 className="font-pixel text-2xl">{setupStep === 1 ? "Gründe dein Land" : "Verfassung"}</h2><span className="font-pixel text-sm tabular-nums">{setupStep}/2</span></div>
+      <PixelCard id="world-setup" className="scroll-mt-5 space-y-5"><div className="flex items-center justify-between gap-4"><h2 className="font-pixel text-2xl">{setupStep === 1 ? "Gründe dein Land" : "Verfassung"}</h2><span className="px-num text-sm">{setupStep}/2</span></div>
         <form className="space-y-5" onSubmit={event => { event.preventDefault(); if (setupStep === 1) { if (setup.goals.length !== 2) { setError("Wähle genau zwei Versprechen."); return; } setError(""); setSetupStep(2); } else beginWorld(); }}>
           {setupStep === 1 ? <><div><label htmlFor="world-country">Wie heißt dein Land?</label><input id="world-country" value={setup.countryName} maxLength={60} required onChange={event => setSetup(previous => ({ ...previous, countryName: event.target.value }))} autoComplete="off" /></div><div><label htmlFor="world-vision">Wofür willst du regieren?</label><textarea id="world-vision" value={setup.vision} maxLength={1000} onChange={event => setSetup(previous => ({ ...previous, vision: event.target.value }))} placeholder="Was soll in deinem Land anders laufen?" /></div>
             <fieldset><legend className="mb-3 font-bold">Wähle zwei Versprechen</legend><div className="grid gap-3 sm:grid-cols-2">{goals.map(goal => <PixelButton key={goal.id} variant={setup.goals.includes(goal.id) ? "info" : "secondary"} className="h-full flex-col items-start justify-start p-3 text-left font-body normal-case" aria-pressed={setup.goals.includes(goal.id)} onClick={() => setSetup(previous => ({ ...previous, goals: previous.goals.includes(goal.id) ? previous.goals.filter(id => id !== goal.id) : previous.goals.length < 2 ? [...previous.goals, goal.id] : [previous.goals[1], goal.id] }))}><span className="font-bold">{setup.goals.includes(goal.id) ? "✓ " : ""}{goal.title}</span><span className="text-xs leading-relaxed">{goal.description}</span></PixelButton>)}</div></fieldset><PixelButton type="submit" size="lg" fullWidth>Weiter zur Verfassung →</PixelButton>
@@ -315,33 +315,32 @@ export function OpenWorld() {
           {busy === "analyze" && <p className="flex items-center gap-3 text-sm" role="status"><ProfessorIgel bob={false} size={40} />Folgen werden analysiert …</p>}
           {proposal && <section ref={analysisPanel} tabIndex={-1} className="scroll-mt-5" aria-labelledby="analysis-title"><PixelCard tone="blue" className="space-y-5"><p className="font-pixel text-sm uppercase">Vorschau · noch kein Beschluss</p><h2 id="analysis-title" className="font-pixel text-balance text-3xl">{proposal.proposal.analysis.title}</h2><blockquote className="border-l-4 border-[var(--px-blue-dark)] pl-4 text-sm">{proposal.proposal.decision}</blockquote><p className="leading-relaxed">{proposal.proposal.analysis.interpretation}</p><details className="pixel-details"><summary>Begründung</summary><p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">{proposal.proposal.analysis.analysis}</p></details>
             <AnalysisDetails analysis={proposal.proposal.analysis} onConcept={openConcept} onRemember={remember} rememberedIds={rememberedIds} />
-            <div className="flex flex-wrap gap-3 border-t-2 border-[var(--px-blue-dark)] pt-4"><PixelButton variant="info" disabled={!!busy || expired} onClick={() => void commit()}>{busy === "commit" ? "Wird übernommen …" : proposal.proposal.kind === "advance" ? "Quartal abschließen" : "Beschluss bestätigen"}</PixelButton><PixelButton variant="secondary" disabled={!!busy} onClick={() => { updateProposal(null); decisionInput.current?.focus(); }}>Ändern</PixelButton></div>
+            <div className="flex flex-wrap gap-3 border-t-2 border-[var(--px-blue-dark)] pt-4"><PixelButton variant="info" disabled={!!busy || expired} onClick={() => void commit()}>{busy === "commit" ? "Wird übernommen …" : proposal.proposal.kind === "advance" ? "Quartal abschließen" : "Beschluss bestätigen"}</PixelButton><PixelButton variant="secondary" disabled={!!busy} onClick={() => { stopCutscene(); updateProposal(null); decisionInput.current?.focus(); }}>Ändern</PixelButton></div>
             {error && <PixelNotice error>{error}</PixelNotice>}
             {expired && <PixelNotice error>Diese Vorschau ist abgelaufen. Dein Stand ist unverändert. <PixelButton size="sm" variant="secondary" disabled={!!busy} onClick={() => void analyze(proposal.proposal.kind)}>Erneut analysieren</PixelButton></PixelNotice>}
           </PixelCard></section>}
           {!proposal && <div className="flex justify-end"><PixelButton size="sm" variant="secondary" disabled={!!busy} onClick={() => void analyze("advance")}>Ein Quartal weiter →</PixelButton></div>}
           {!proposal && state.lastAnalysis && <details className="pixel-details border-[length:var(--px-border)] border-[var(--px-ink)] bg-[var(--px-white)] p-4"><summary>Dein letzter Beschluss: {state.lastAnalysis.title}</summary><div className="mt-5 space-y-5"><p>{state.lastAnalysis.analysis}</p><AnalysisDetails analysis={state.lastAnalysis} onConcept={openConcept} onRemember={remember} rememberedIds={rememberedIds} /></div></details>}
-          <PeopleBar reactions={citizenVoices.reactions ?? proposal?.proposal.analysis.characterReactions ?? state.lastAnalysis?.characterReactions} pending={citizenVoices.pending} awaiting={citizenVoices.awaiting} onRetry={citizenVoices.canRetry ? citizenVoices.retry : undefined} onVisit={proposal || state.lastAnalysis ? () => {
-            const analysis = proposal?.proposal.analysis ?? state.lastAnalysis!;
-            setCutsceneVisitors(buildVisitors({ ...analysis, characterReactions: citizenVoices.reactions ?? analysis.characterReactions }));
-            setCutsceneFor(proposal?.proposal.id ?? "last");
-          } : undefined} caption={proposal ? "Bürgerstimmen · Vorschau" : state.lastAnalysis ? `Zu: ${state.lastAnalysis.title}` : "Bürgerstimmen"} />
-          {!proposal && !!state.suggestions.length && <details className="pixel-details"><summary>Weitere Ideen</summary><div className="mt-3 grid gap-2">{state.suggestions.map((text, index) => <PixelButton key={`${index}:${text}`} variant="secondary" className="justify-between text-left font-body normal-case" disabled={!!busy} onClick={() => fillDraft(text)}>{text}<span aria-hidden="true">↗</span></PixelButton>)}</div></details>}
+          {!proposal && !!state.suggestions.length && <section aria-labelledby="world-ideas"><h3 id="world-ideas" className="font-pixel mb-3 text-xl">Weitere Ideen</h3><div className="grid gap-2">{state.suggestions.map((text, index) => <PixelButton key={`${index}:${text}`} variant="secondary" className="justify-between text-left font-body normal-case" disabled={!!busy} onClick={() => fillDraft(text)}>{text}<span aria-hidden="true">↗</span></PixelButton>)}</div></section>}
         </div>
         <aside className="min-w-0 space-y-5" aria-label="Dein Land im Überblick">
           <PixelCard title="Stimmung" className="space-y-4">{Object.entries(state.groups).map(([key, value]) => <MoodMeter key={key} value={value} label={groupLabels[key as keyof typeof groupLabels]} />)}</PixelCard>
-          <PromiseTracks rows={promises} collapsed /><InstitutionNotes institutions={state.institutions} />
+          <PromiseTracks rows={promises} />
           {state.pending.length > 0 && <PixelCard title="Ausstehende Folgen"><div className="space-y-4">{state.pending.map(item => <div key={item.id}><p className="font-pixel text-sm">In {item.dueRound - state.round} {item.dueRound - state.round === 1 ? "Runde" : "Runden"}</p><p className="mt-1 text-sm leading-relaxed">{item.description}</p></div>)}</div></PixelCard>}
         </aside>
       </div>
-      <div className="mt-6 grid items-start gap-6 lg:grid-cols-2"><PixelCard><details className="pixel-details"><summary>Nachrichten</summary><div className="mt-4 space-y-4">{state.news.slice(0, 4).map(news => <article key={news.id} className="border-b-2 border-[var(--px-gray)] pb-4"><p className="font-pixel text-xs">{roundLabel(news.round)}</p><h4 className="mt-1 font-bold">{news.title}</h4><p className="mt-2 text-sm leading-relaxed">{news.text.length > 320 ? `${news.text.slice(0, 320).trim()} …` : news.text}</p></article>)}</div><PixelButton className="mt-4" size="sm" variant="secondary" onClick={() => setScreen("chronicle")}>Chronik öffnen</PixelButton></details></PixelCard>
-        <PixelCard className="space-y-4"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><ProfessorIgel bob={false} size={40} /><h3 className="font-pixel text-xl">Professor Igel</h3></div><PixelButton variant="secondary" size="sm" aria-expanded={tutorOpen} aria-controls="world-tutor" onClick={() => setTutorOpen(previous => !previous)}>{tutorOpen ? "Schließen" : "Frage stellen"}</PixelButton></div>
-          {tutorOpen && <div id="world-tutor" className="space-y-4"><div className="max-h-80 space-y-3 overflow-auto" role="log" aria-label="Tutor-Gespräch">{messages.map((message, index) => <div className={cn("border-2 border-[var(--px-ink)] p-3 text-sm", message.role === "user" ? "bg-[var(--px-purple-light)]" : "bg-[var(--px-white)]")} key={index}><p className="font-bold">{message.role === "user" ? "Du" : "Professor Igel"}</p><p className="mt-1 whitespace-pre-wrap leading-relaxed">{message.text}</p></div>)}</div><form className="space-y-3" onSubmit={event => { event.preventDefault(); const text = question; void askTutor(text).then(() => setQuestion(previous => previous === text ? "" : previous)).catch(() => {}); }}><label htmlFor="world-question">Deine Frage</label><textarea id="world-question" value={question} onChange={event => setQuestion(event.target.value)} maxLength={1500} placeholder="Was habe ich bei meiner Entscheidung übersehen?" required /><PixelButton type="submit" variant="tutor" disabled={tutoring || !!busy || !question.trim()}>{tutoring ? "Professor Igel denkt nach …" : "Frage stellen"}</PixelButton></form></div>}
-          {audioConfigured && !voiceConfigured && tutorOpen && <ProfessorVoice disabled={tutoring || !!busy} onQuestion={text => askTutor(text)} />}
-          {voiceConfigured && tutorOpen && <VoicePanel pixel bridge={voiceBridge} contextVersion={`${state.id}:${state.revision}:${proposal?.proposal.id ?? "none"}`} configured={voiceConfigured} onTranscript={(source, text) => { setTutorOpen(true); setMessages(previous => [...previous, { role: source === "user" ? "user" as const : "assistant" as const, text, source: "Sprachagent" }].slice(-24)); }} />}
-        </PixelCard>
-      </div>
-      {cutsceneFor && (proposal && cutsceneFor === proposal.proposal.id || cutsceneFor === "last" && state.lastAnalysis) && <Cutscene visitors={cutsceneVisitors} decision={proposal?.proposal.decision ?? state.history.at(-1)?.decision ?? ""} onDone={() => setCutsceneFor(null)} />}
+      <div className="mt-6"><PixelCard title="Nachrichten"><div className="mt-4 space-y-4">{state.news.slice(0, 4).map(news => <article key={news.id} className="border-b-2 border-[var(--px-gray)] pb-4"><p className="font-pixel text-xs">{roundLabel(news.round)}</p><h4 className="mt-1 font-bold">{news.title}</h4><p className="mt-2 text-sm leading-relaxed">{news.text.length > 320 ? `${news.text.slice(0, 320).trim()} …` : news.text}</p></article>)}</div><PixelButton className="mt-4" size="sm" variant="secondary" onClick={() => setScreen("chronicle")}>Chronik öffnen</PixelButton></PixelCard></div>
+      {/* Professor Igel wartet am linken Rand und klappt bei Bedarf als Schublade auf */}
+      {!tutorOpen && <button type="button" className="igel-tab" aria-expanded={false} aria-controls="world-tutor" onClick={() => setTutorOpen(true)}><ProfessorIgel bob={false} size={56} /><span className="igel-tab__label font-pixel">Frag mich!</span></button>}
+      {tutorOpen && <aside id="world-tutor" className="igel-drawer" aria-label="Professor Igel">
+        <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><ProfessorIgel bob={false} size={48} /><h3 className="font-pixel text-xl">Professor Igel</h3></div><PixelButton variant="secondary" size="sm" aria-expanded onClick={() => setTutorOpen(false)}>Schließen</PixelButton></div>
+        <div className="space-y-4"><div className="max-h-80 space-y-3 overflow-auto" role="log" aria-label="Tutor-Gespräch">{messages.map((message, index) => <div className={cn("border-2 border-[var(--px-ink)] p-3 text-sm", message.role === "user" ? "bg-[var(--px-purple-light)]" : "bg-[var(--px-white)]")} key={index}><p className="font-bold">{message.role === "user" ? "Du" : "Professor Igel"}</p><p className="mt-1 whitespace-pre-wrap leading-relaxed">{message.text}</p></div>)}</div><form className="space-y-3" onSubmit={event => { event.preventDefault(); const text = question; void askTutor(text).then(() => setQuestion(previous => previous === text ? "" : previous)).catch(() => {}); }}><label htmlFor="world-question">Deine Frage</label><textarea id="world-question" value={question} onChange={event => setQuestion(event.target.value)} maxLength={1500} placeholder="Was habe ich bei meiner Entscheidung übersehen?" required /><PixelButton type="submit" variant="tutor" disabled={tutoring || !!busy || !question.trim()}>{tutoring ? "Professor Igel denkt nach …" : "Frage stellen"}</PixelButton></form></div>
+        {audioConfigured && !voiceConfigured && <ProfessorVoice disabled={tutoring || !!busy} onQuestion={text => askTutor(text)} />}
+        {voiceConfigured && <VoicePanel pixel bridge={voiceBridge} contextVersion={`${state.id}:${state.revision}:${proposal?.proposal.id ?? "none"}`} configured={voiceConfigured} onTranscript={(source, text) => { setTutorOpen(true); setMessages(previous => [...previous, { role: source === "user" ? "user" as const : "assistant" as const, text, source: "Sprachagent" }].slice(-24)); }} />}
+      </aside>}
+      {/* Bürgerstimmen bleiben unten am Bildschirm sichtbar */}
+      <div className="people-dock"><PeopleBar reactions={citizenVoices.reactions ?? proposal?.proposal.analysis.characterReactions ?? state.lastAnalysis?.characterReactions} pending={citizenVoices.pending} awaiting={citizenVoices.awaiting} onRetry={citizenVoices.canRetry ? citizenVoices.retry : undefined} onVisit={proposal || state.lastAnalysis ? () => setCutscene({ open: true, decision: proposal?.proposal.decision ?? state.history.at(-1)?.decision ?? "", proposalId: proposal?.proposal.id ?? "last" }) : undefined} caption={proposal ? "Bürgerstimmen · Vorschau" : state.lastAnalysis ? `Zu: ${state.lastAnalysis.title}` : "Bürgerstimmen"} /></div>
+      {cutscene?.open && (cutscene.proposalId === null ? busy === "analyze" : cutscene.proposalId === "last" ? !!state.lastAnalysis : proposal?.proposal.id === cutscene.proposalId) && <Cutscene visitors={cutscene.proposalId === "last" && state.lastAnalysis ? buildVisitors({ ...state.lastAnalysis, characterReactions: citizenVoices.reactions ?? state.lastAnalysis.characterReactions }) : proposal && proposal.proposal.id === cutscene.proposalId ? buildVisitors({ ...proposal.proposal.analysis, characterReactions: citizenVoices.reactions ?? proposal.proposal.analysis.characterReactions }) : null} decision={cutscene.decision} onDone={stopCutscene} />}
     </>}
 
     {screen === "balance" && state && <section className="space-y-6">{state.setup.vision && <p className="text-sm">Dein Ziel: „{state.setup.vision}“</p>}<PromiseTracks rows={promises} /><PixelCard className="space-y-5"><div className="flex items-center gap-3"><RichterFrosch bob={false} size={48} /><h3 className="font-pixel text-2xl">Wenn jemand anderes regiert</h3></div><p className="text-sm">Eine Person mit anderen Zielen übernimmt dieselben Befugnisse. Welche Regeln begrenzen sie?</p>
@@ -368,7 +367,7 @@ function promiseRows(state: WorldState) {
   });
 }
 
-function PromiseTracks({ rows, collapsed = false }: { rows: ReturnType<typeof promiseRows>; collapsed?: boolean }) {
-  const tracks = <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1">{rows.map(row => <div key={row.id}><div className="mb-2 flex items-start justify-between gap-3"><h4 className="text-sm font-bold">{row.title}</h4><span className="font-pixel shrink-0 tabular-nums">{row.fulfilled ? "✓" : `${Math.round(row.progress)} %`}</span></div><ProgressBar max={10} value={row.progress / 10} label={`${row.title}: ${Math.round(row.progress)} Prozent`} /><p className="mt-2 text-xs leading-relaxed">{row.detail}</p></div>)}</div>;
-  return <PixelCard title={collapsed ? undefined : "Versprechen"}>{collapsed ? <details className="pixel-details"><summary>Versprechen</summary><div className="mt-4">{tracks}</div></details> : tracks}</PixelCard>;
+function PromiseTracks({ rows }: { rows: ReturnType<typeof promiseRows> }) {
+  const tracks = <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1">{rows.map(row => <div key={row.id}><div className="mb-2 flex items-start justify-between gap-3"><h4 className="text-sm font-bold">{row.title}</h4><span className="px-num shrink-0">{row.fulfilled ? "✓" : `${Math.round(row.progress)} %`}</span></div><ProgressBar max={10} value={row.progress / 10} label={`${row.title}: ${Math.round(row.progress)} Prozent`} /><p className="mt-2 text-xs leading-relaxed">{row.detail}</p></div>)}</div>;
+  return <PixelCard title="Versprechen">{tracks}</PixelCard>;
 }

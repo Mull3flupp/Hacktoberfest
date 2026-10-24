@@ -19,7 +19,7 @@ export function StatTile({ label, value, change, className }: StatTileProps) {
       )}
     >
       <p className="text-xs font-bold uppercase leading-tight text-[var(--px-gray-dark)]">{label}</p>
-      <p className="font-pixel flex items-baseline gap-2 text-2xl">
+      <p className="px-num flex items-baseline gap-2 text-2xl">
         {value}
         {change !== undefined && change !== 0 && (
           <span className="text-sm">
