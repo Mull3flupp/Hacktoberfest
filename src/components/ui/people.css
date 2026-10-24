@@ -1,0 +1,229 @@
+/*
+ * Leiste mit den sechs Bürgerfiguren (PeopleBar).
+ * Eigene Klassen statt Tailwind, damit die Leiste auch im bestehenden Spiel-Layout gleich aussieht.
+ */
+
+.people-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin: 28px auto 0;
+  max-width: 980px;
+  padding: 10px 14px 6px;
+  background: var(--px-paper);
+  color: var(--px-ink);
+  border: var(--px-border) solid var(--px-ink);
+  border-bottom: none;
+  box-shadow: 0 calc(-1 * var(--px-shadow)) 0 rgba(27, 27, 47, 0.12);
+  font-family: var(--font-body), "Nunito", system-ui, sans-serif;
+}
+
+.people-bar button {
+  font: inherit;
+  color: inherit;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.people-bar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.people-bar__caption {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.people-bar .people-bar__toggle {
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  background: transparent;
+  border: 2px solid var(--px-ink);
+}
+
+.people-bar__bubble {
+  position: relative;
+  margin: 8px 0 12px;
+  padding: 8px 12px;
+  background: var(--px-white);
+  border: var(--px-border) solid var(--px-ink);
+  animation: people-pop 200ms steps(3, end);
+}
+
+/* Sprechblasen-Spitze */
+.people-bar__bubble::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--people-tip, 8%) - 6px);
+  bottom: -12px;
+  width: 12px;
+  height: 12px;
+  background: var(--px-white);
+  border-right: var(--px-border) solid var(--px-ink);
+  border-bottom: var(--px-border) solid var(--px-ink);
+  transform: rotate(45deg) translate(-4px, -4px);
+}
+
+.people-bar__bubble strong {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.people-bar__bubble small {
+  font-size: 0.72rem;
+  font-weight: normal;
+  opacity: 0.75;
+}
+
+.people-bar__bubble p {
+  margin: 4px 0 0;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.people-bar__row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.people-bar__row li {
+  margin: 0;
+}
+
+.people-bar .people-person {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 4px 2px 2px;
+  background: transparent;
+  border: 2px solid transparent;
+}
+
+.people-bar .people-person:hover:not(:disabled) {
+  background: var(--px-yellow-light);
+  border-color: transparent;
+}
+
+.people-bar .people-person.is-selected {
+  background: var(--px-yellow-light);
+  border-color: var(--px-ink);
+}
+
+.people-bar .people-person:focus-visible {
+  outline: 3px solid var(--px-yellow);
+  outline-offset: 2px;
+}
+
+.people-person__name {
+  margin-top: 2px;
+  font-size: 0.68rem;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.people-person__badge {
+  position: absolute;
+  top: 0;
+  right: 6px;
+  min-width: 20px;
+  padding: 0 3px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  line-height: 18px;
+  text-align: center;
+  border: 2px solid var(--px-ink);
+}
+
+.people-stance {
+  padding: 0 6px;
+  font-size: 0.7rem;
+  border: 2px solid var(--px-ink);
+}
+
+/* Neutrale Farben: Zustimmung ist nicht „richtig“, Widerspruch nicht „falsch“ */
+.people-stance--support { background: var(--px-blue-light); }
+.people-stance--concern { background: var(--px-yellow-light); }
+.people-stance--oppose { background: var(--px-purple-light); }
+.people-stance--mixed { background: var(--px-white); }
+
+/* Körpersprache: Zustimmung hüpft, Widerspruch schüttelt den Kopf, Bedenken wackeln */
+.people-person--support .people-person__sprite { animation: people-hop 0.9s steps(1, end) infinite; }
+.people-person--oppose .people-person__sprite { animation: people-shake 0.6s steps(1, end) infinite; }
+.people-person--concern .people-person__sprite,
+.people-person--mixed .people-person__sprite { animation: people-tilt 1.4s steps(1, end) infinite; }
+
+@keyframes people-hop {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12%); }
+}
+
+@keyframes people-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6%); }
+  75% { transform: translateX(6%); }
+}
+
+@keyframes people-tilt {
+  0%, 100% { transform: rotate(0); }
+  50% { transform: rotate(-6deg); }
+}
+
+@keyframes people-pop {
+  from { transform: scale(0.92); opacity: 0.4; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Breite Bildschirme: Figuren links, Sprechblase rechts, damit die Leiste flach bleibt */
+@media (min-width: 900px) {
+  .people-bar { max-width: 1100px; padding-bottom: 8px; }
+  .people-bar__body {
+    display: grid;
+    grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
+    align-items: center;
+    gap: 18px;
+  }
+  .people-bar__row { order: -1; margin-top: 6px; }
+  .people-bar .people-person__sprite { width: 48px; height: 48px; }
+  .people-bar__bubble { margin: 6px 0 0; }
+  .people-bar__bubble::after {
+    left: -12px;
+    top: calc(50% - 6px);
+    bottom: auto;
+    border-right: none;
+    border-top: var(--px-border) solid var(--px-ink);
+    border-bottom: none;
+    border-left: var(--px-border) solid var(--px-ink);
+    transform: rotate(-45deg) translate(4px, 4px);
+  }
+}
+
+.people-bar--collapsed {
+  padding-bottom: 10px;
+}
+
+@media (max-width: 600px) {
+  .people-bar { padding: 8px 6px 4px; margin-top: 20px; }
+  .people-bar .people-person__sprite { width: 40px; height: 40px; }
+  .people-person__name { font-size: 0.6rem; }
+  .people-bar__bubble p { font-size: 0.85rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .people-bar__bubble,
+  .people-person--support .people-person__sprite,
+  .people-person--oppose .people-person__sprite,
+  .people-person--concern .people-person__sprite,
+  .people-person--mixed .people-person__sprite { animation: none; }
+}

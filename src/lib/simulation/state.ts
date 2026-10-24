@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { applyDecision, createGame } from "../game/engine";
+import { CHARACTER_IDS } from "./characters";
 import type { WorldAnalysis, WorldEffects, WorldProposal, WorldState } from "./types";
 
 const safeInteger = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
@@ -36,6 +37,8 @@ export const worldAnalysisSchema = z.object({
   immediate: worldEffectsSchema,
   delayed: z.array(z.object({ afterRounds: z.number().int().min(1).max(6), description: text(1000), effects: worldEffectsSchema }).strict()).max(6),
   reactions: z.array(z.object({ name: text(100), role: text(160), stance: z.enum(["support", "concern", "oppose", "mixed"]), quote: text(1000) }).strict()).max(8),
+  characterReactions: z.array(z.object({ characterId: z.enum(CHARACTER_IDS), stance: z.enum(["support", "concern", "oppose", "mixed"]), quote: text(400) }).strict()).max(CHARACTER_IDS.length)
+    .refine((items) => new Set(items.map((item) => item.characterId)).size === items.length, "Jede Figur darf nur einmal reagieren.").optional(),
   followUps: strings(5, 1000), factsToAdd: strings(12, 600), factsToRemove: strings(32, 600),
   conceptIds: z.array(conceptId).max(6).refine((items) => new Set(items).size === items.length, "Begriffs-IDs dürfen nicht doppelt vorkommen."),
 }).strict();

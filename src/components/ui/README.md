@@ -31,6 +31,15 @@ Die alten Grundstile in `globals.css` liegen in `@layer base`, damit Tailwind-Ut
 | `StatTile`, `InstitutionBadge` | Dashboard-Kennzahlen (fiktive Indexwerte) und Institutionenstatus |
 | `MicButton` | Mikrofon-Button, nur Darstellung (`idle`, `recording`, `processing`, `unavailable`) |
 | `ProfessorIgel`, `Gruender`, `RichterFrosch`, `CitizenBlob`, `GroupBlob` | Figuren als 16×16-Sprites |
+| `PersonSprite` | Die sechs festen Bürgerfiguren (Finn, Oma Gisela, Bauer Heinz, Lea, Mika, Karen) |
+| `PeopleBar` | Leiste unten im Spiel: die sechs Figuren mit Sprechblase und Haltung (+ dafür, − dagegen, ? Bedenken, ~ zwiespältig) |
+| `IntroSlides` | Durchklickbare Intro-Show mit animierten Pixel-Szenen, endet mit „Du wurdest gewählt!“ |
+
+## Intro und Bürgerfiguren
+
+- **Intro:** `src/components/intro-gate.tsx` zeigt `IntroSlides` auf der Startseite einmal pro Browser-Tab. Mit `/?intro` läuft es erneut. Die Szenen sind in `introScenes.tsx` aus Rechtecken gezeichnet, ohne Bilddateien.
+- **Figuren:** Namen, Rollen und Charakterbeschreibungen stehen in `src/lib/simulation/characters.ts`. Gemma bekommt die Beschreibungen mit und schreibt zu jeder Analyse pro Figur einen Satz plus Haltung (`characterReactions`). Ältere Spielstände ohne diese Reaktionen bleiben gültig; die Leiste zeigt dann die Leerlauf-Sprüche.
+- PeopleBar und IntroSlides bringen ihre eigenen CSS-Dateien (`people.css`, `intro.css`) mit und funktionieren deshalb auch außerhalb von `.px-root`.
 
 ## Neutralität
 

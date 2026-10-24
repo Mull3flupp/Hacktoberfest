@@ -131,3 +131,18 @@ test("a missing signing key never falls back to an insecure shared secret", () =
   assert.throws(() => signWorld(world()), /Signaturschlüssel/);
   process.env.SIMULATION_SIGNING_KEY = "simulation-test-key-only-not-a-real-secret-2026";
 });
+
+test("the six fixed characters may react once each; older analyses without reactions stay valid", () => {
+  const reactions = [
+    { characterId: "finance-bro", stance: "oppose", quote: "Das killt jeden Investment-Case." },
+    { characterId: "oma", stance: "concern", quote: "Unter Schröder gab es so was nicht." },
+  ] as const;
+  assert.deepEqual(validateAnalysis(analysis({ characterReactions: [...reactions] })).characterReactions, reactions);
+  assert.equal(validateAnalysis(analysis()).characterReactions, undefined);
+  assert.throws(() => validateAnalysis(analysis({ characterReactions: [reactions[0], { ...reactions[0], quote: "Noch einmal." }] })));
+  assert.throws(() => validateAnalysis(analysis({ characterReactions: [{ characterId: "unknown" as never, stance: "support", quote: "Wer bin ich?" }] })));
+  const initial = world();
+  const committed = applyWorldProposal(initial, proposal(initial, analysis({ characterReactions: [...reactions] })));
+  assert.deepEqual(committed.state.lastAnalysis?.characterReactions, reactions);
+  assert.doesNotThrow(() => validateWorld(committed.state));
+});
