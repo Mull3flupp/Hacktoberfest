@@ -59,7 +59,8 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 
 - Startet im Spiel automatisch 10 Sekunden nach „Folgen analysieren“ (`open-world.tsx`, `CUTSCENE_DELAY`). Läuft die Analyse dann noch, zeigt das Büro „Vor der Tür warten schon Leute …“ (`visitors={null}`), bis die Besucher hereinkommen. „Überspringen“ oder Escape führt direkt zur Vorschau.
 - Die Szene verwendet einen nativen modalen Dialog: Das Dashboard bleibt währenddessen per Tastatur und Maus gesperrt. Enter auf „Überspringen“ beendet die Szene direkt.
-- `buildVisitors` nimmt zuerst bis zu drei direkt Betroffene aus `analysis.reactions` (Gemma wählt dafür `look` und `count` 1–4) und danach bis zu drei feste Figuren mit möglichst unterschiedlicher Haltung.
+- `buildVisitors(analysis, seed)` wählt 3–4 Besucher mit je einer Meinung: höchstens zwei direkt Betroffene aus `analysis.reactions` (Gemma wählt dafür `look` und `count` 1–4), dann feste Figuren, bevorzugt mit noch fehlenden Haltungen. Der `seed` wechselt, welche Figuren kommen.
+- `pickSetting(seed)` würfelt Raum (Büro, Kabinettssaal, Bürgerbüro), Tageszeit (morgens, mittags, abends, nachts), Wochentag und Uhrzeit aus. Die Räume stehen in `officeScene.tsx` (`ROOMS`, `TIMES`).
 - Unbekannte `look`-Werte oder doppelte Figuren aus der KI-Antwort werden aussortiert, statt die ganze Analyse abzulehnen.
 - In `/ui-demo` lässt sich die Szene mit Beispielsätzen zum Dönerpreis abspielen.
 

@@ -30,6 +30,7 @@ import {
   type Tradeoff,
 } from "../../components/ui";
 import { characters } from "@/lib/simulation/characters";
+import { pickSetting } from "../../components/ui/officeScene";
 import type { CharacterReaction } from "@/lib/simulation/types";
 
 /* ---------- Beispielinhalte (nur Demo, echte Inhalte kommen von C) ---------- */
@@ -90,7 +91,8 @@ const SAMPLE_REACTIONS: CharacterReaction[] = [
   { characterId: "startup", stance: "oppose", quote: "Deckel? Lieber ein Proptech-Startup, das Wohnraum skaliert!" },
 ];
 
-const SAMPLE_VISITORS = buildVisitors({
+/** Beispielreaktionen zum Dönerpreis; jede Wiedergabe wählt daraus 3–4 Besucher. */
+const SAMPLE_CUTSCENE: Parameters<typeof buildVisitors>[0] = {
   reactions: [
     { name: "Imbiss am Markt", role: "Imbissbetreiber", look: "imbiss", count: 1, stance: "oppose", quote: "Zwei Euro? Das ist viel zu günstig! Davon kann ich weder Fleisch noch Miete zahlen." },
     { name: "WG aus der Unistraße", role: "Studierende", look: "studierende", count: 4, stance: "support", quote: "Endlich ein Mittagessen, das wir uns leisten können!" },
@@ -101,8 +103,11 @@ const SAMPLE_VISITORS = buildVisitors({
     { characterId: "berlin", stance: "support", quote: "Essen ist ein Grundrecht! Als Nächstes die Club-Mate." },
     { characterId: "oma", stance: "concern", quote: "Döner? Früher gab es Frikadellen. Aber zwei Euro, das ist ja geschenkt." },
     { characterId: "startup", stance: "mixed", quote: "Klingt nach einer Chance für eine Döner-Delivery-App." },
+    { characterId: "landwirt", stance: "concern", quote: "Und wer zahlt dann noch anständig für mein Fleisch und Gemüse?" },
+    { characterId: "umwelt", stance: "mixed", quote: "Billiges Fleisch für alle? Dann aber bitte auch eine gute vegane Variante." },
+    { characterId: "karen", stance: "support", quote: "Endlich kann ich die Kinder mal ohne schlechtes Gewissen mitnehmen." },
   ],
-});
+};
 
 const VISITOR_LOOK_LIST = ["imbiss", "studierende", "handwerk", "business", "senioren", "familie", "verwaltung", "buerger"] as const;
 
@@ -129,7 +134,8 @@ export default function UiDemoPage() {
   const [mic, setMic] = useState<MicState>("idle");
   const [mood, setMood] = useState(55);
   const [introOpen, setIntroOpen] = useState(false);
-  const [cutsceneOpen, setCutsceneOpen] = useState(false);
+  // Jede Wiedergabe würfelt Besucher, Raum und Uhrzeit neu aus.
+  const [cutsceneSeed, setCutsceneSeed] = useState<number | null>(null);
   const [reacting, setReacting] = useState(true);
 
   // Szenen-Flow
@@ -390,7 +396,7 @@ export default function UiDemoPage() {
           {VISITOR_LOOK_LIST.map((look) => <VisitorSprite key={look} look={look} size={48} label={look} />)}
         </div>
         <div>
-          <PixelButton variant="info" onClick={() => setCutsceneOpen(true)}>Zwischensequenz abspielen</PixelButton>
+          <PixelButton variant="info" onClick={() => setCutsceneSeed(Math.floor(Math.random() * 233280))}>Zwischensequenz abspielen</PixelButton>
         </div>
       </Section>
 
@@ -416,7 +422,7 @@ export default function UiDemoPage() {
 
       <PeopleBar reactions={reacting ? SAMPLE_REACTIONS : []} caption={reacting ? "Reaktionen auf: Mietendeckel (Beispiel)" : undefined} />
       {introOpen && <IntroSlides onDone={() => setIntroOpen(false)} />}
-      {cutsceneOpen && <Cutscene visitors={SAMPLE_VISITORS} decision="Ich will den Dönerpreis auf 2 € begrenzen." onDone={() => setCutsceneOpen(false)} />}
+      {cutsceneSeed !== null && <Cutscene visitors={buildVisitors(SAMPLE_CUTSCENE, cutsceneSeed)} setting={pickSetting(cutsceneSeed)} decision="Ich will den Dönerpreis auf 2 € begrenzen." onDone={() => setCutsceneSeed(null)} />}
 
       <FeedbackSheet
         open={sheet !== null}

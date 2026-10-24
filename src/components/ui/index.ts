@@ -25,3 +25,4 @@ export { PeopleBar, type PeopleBarProps } from "./PeopleBar";
 export { IntroSlides, type IntroSlidesProps } from "./IntroSlides";
 export { VisitorSprite } from "./visitors";
 export { Cutscene, buildVisitors, type CutsceneProps, type CutsceneVisitor } from "./Cutscene";
+export { pickSetting, ROOMS, TIMES, type Setting, type RoomId, type TimeOfDay } from "./officeScene";

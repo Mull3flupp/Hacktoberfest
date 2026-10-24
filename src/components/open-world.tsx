@@ -11,6 +11,7 @@ import { validateWorld, worldProposalSchema } from "@/lib/simulation/state";
 import type { SignedWorld, SignedWorldProposal, WorldCommit, WorldState } from "@/lib/simulation/types";
 import { LearningPanel } from "./learning-panel";
 import { Cutscene, buildVisitors } from "./ui/Cutscene";
+import { pickSetting } from "./ui/officeScene";
 import { PeopleBar } from "./ui/PeopleBar";
 import { VoicePanel, type VoiceBridge } from "./voice-panel";
 import { FeedbackSheet, Gruender, MoodMeter, PixelButton, PixelCard, ProfessorIgel, ProgressBar, RichterFrosch, SceneCard, cn } from "./ui";
@@ -75,7 +76,8 @@ export function OpenWorld() {
   const [draft, setDraft] = useState("");
   const [proposal, setProposal] = useState<SignedWorldProposal | null>(null);
   // Zwischensequenz: startet CUTSCENE_DELAY nach dem Vorschlag; die Besucher kommen, sobald die Analyse da ist.
-  const [cutscene, setCutscene] = useState<{ open: boolean; decision: string; proposalId: string | null } | null>(null);
+  // seed würfelt Raum, Uhrzeit und Auswahl der festen Figuren für jede Szene neu aus.
+  const [cutscene, setCutscene] = useState<{ open: boolean; decision: string; proposalId: string | null; seed: number } | null>(null);
   const cutsceneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const proposalRef = useRef<SignedWorldProposal | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
@@ -168,7 +170,7 @@ export function OpenWorld() {
     const requestEpoch = epoch.current;
     if (cutsceneTimer.current) clearTimeout(cutsceneTimer.current);
     if (kind === "decision") {
-      setCutscene({ open: false, decision, proposalId: null });
+      setCutscene({ open: false, decision, proposalId: null, seed: Math.floor(Math.random() * 233280) });
       cutsceneTimer.current = setTimeout(() => setCutscene(previous => previous && { ...previous, open: true }), CUTSCENE_DELAY);
     } else setCutscene(null);
     try {
@@ -316,7 +318,7 @@ export function OpenWorld() {
       </aside>}
       {/* Bürgerstimmen bleiben unten am Bildschirm sichtbar */}
       <div className="people-dock"><PeopleBar reactions={proposal?.proposal.analysis.characterReactions ?? state.lastAnalysis?.characterReactions} caption={proposal ? "Bürgerstimmen · Vorschau" : state.lastAnalysis?.characterReactions?.length ? `Zu: ${state.lastAnalysis.title}` : "Bürgerstimmen"} /></div>
-      {cutscene?.open && (cutscene.proposalId === null ? busy === "analyze" : proposal?.proposal.id === cutscene.proposalId) && <Cutscene visitors={proposal && proposal.proposal.id === cutscene.proposalId ? buildVisitors(proposal.proposal.analysis) : null} decision={cutscene.decision} onDone={stopCutscene} />}
+      {cutscene?.open && (cutscene.proposalId === null ? busy === "analyze" : proposal?.proposal.id === cutscene.proposalId) && <Cutscene visitors={proposal && proposal.proposal.id === cutscene.proposalId ? buildVisitors(proposal.proposal.analysis, cutscene.seed) : null} setting={pickSetting(cutscene.seed)} decision={cutscene.decision} onDone={stopCutscene} />}
     </>}
 
     {screen === "balance" && state && <section className="space-y-6">{state.setup.vision && <p className="text-sm">Dein Ziel: „{state.setup.vision}“</p>}<PromiseTracks rows={promises} /><PixelCard className="space-y-5"><div className="flex items-center gap-3"><RichterFrosch bob={false} size={48} /><h3 className="font-pixel text-2xl">Wenn jemand anderes regiert</h3></div><p className="text-sm">Eine Person mit anderen Zielen übernimmt dieselben Befugnisse. Welche Regeln begrenzen sie?</p>
