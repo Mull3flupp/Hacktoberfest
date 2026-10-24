@@ -14,6 +14,8 @@ import { Cutscene, buildVisitors, type CutsceneVisitor } from "./ui/Cutscene";
 import { useCitizenVoices } from "./use-citizen-voices";
 import { PeopleBar } from "./ui/PeopleBar";
 import { VoicePanel, type VoiceBridge } from "./voice-panel";
+import { ProfessorVoice } from "./professor-voice";
+import { isMuted, playSoundEffect, setMuted, speakCharacter, speakProfessor, startBackgroundMusic, stopCurrentSpeech, subscribeMuted } from "@/lib/audio/manager";
 import { FeedbackSheet, Gruender, MoodMeter, PixelButton, PixelCard, ProfessorIgel, ProgressBar, RichterFrosch, SceneCard, cn } from "./ui";
 import { AnalysisDetails, EffectChips, InstitutionNotes, PixelNotice, WorldMetrics, format } from "./world-panels";
 
@@ -75,6 +77,7 @@ export function OpenWorld() {
   const [cutsceneFor, setCutsceneFor] = useState<string | null>(null);
   const [cutsceneVisitors, setCutsceneVisitors] = useState<CutsceneVisitor[]>([]);
   const citizenVoices = useCitizenVoices(snapshot, proposal);
+  const voiceSignature = citizenVoices.reactions?.map(reaction => `${reaction.characterId}:${reaction.quote}`).join("\u0000") ?? "";
   const proposalRef = useRef<SignedWorldProposal | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
   const busyRef = useRef(false);
@@ -90,6 +93,8 @@ export function OpenWorld() {
   const tutorBusy = useRef(false);
   const [tutorOpen, setTutorOpen] = useState(false);
   const [voiceConfigured, setVoiceConfigured] = useState(false);
+  const [audioConfigured, setAudioConfigured] = useState(false);
+  const [muted, setMutedState] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const decisionInput = useRef<HTMLTextAreaElement>(null);
   const analysisPanel = useRef<HTMLElement>(null);
@@ -106,9 +111,14 @@ export function OpenWorld() {
       }
     } catch { setCanPersist(false); setStorageError("Der gespeicherte Stand dieser Simulation ist nicht lesbar. Du kannst ein neues Land gründen; ältere Prototyp-Spielstände bleiben erhalten."); }
     setReady(true);
-    fetch("/api/health").then(response => response.ok ? response.json() : null).then(value => setVoiceConfigured(Boolean(value?.voice?.configured))).catch(() => {});
+    fetch("/api/health").then(response => response.ok ? response.json() : null).then(value => { setVoiceConfigured(Boolean(value?.voice?.configured)); setAudioConfigured(Boolean(value?.audio?.configured)); }).catch(() => {});
+    setMutedState(isMuted());
+    const unsubscribe = subscribeMuted(setMutedState);
+    const unlock = () => startBackgroundMusic();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
     const timer = setInterval(() => setNow(Date.now()), 15_000);
-    return () => { clearInterval(timer); epoch.current += 1; };
+    return () => { clearInterval(timer); epoch.current += 1; unsubscribe(); window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); stopCurrentSpeech(); };
   }, []);
 
   useEffect(() => {
@@ -122,6 +132,20 @@ export function OpenWorld() {
     if (screen === "setup" && setupStep === 2) document.getElementById("world-setup")?.scrollIntoView({ block: "start" });
     else window.scrollTo(0, 0);
   }, [screen, setupStep, ready]);
+
+  useEffect(() => { stopCurrentSpeech(); }, [screen]);
+
+  useEffect(() => {
+    if (ready && screen === "setup" && setupStep === 2) void speakCharacter("richter", "Wer darf dich begrenzen? Wer kann deine Entscheidungen prüfen, anfechten oder dich abwählen?");
+  }, [ready, screen, setupStep]);
+
+  useEffect(() => {
+    if (proposal && cutsceneFor === proposal.proposal.id && citizenVoices.reactions) {
+      setCutsceneVisitors(buildVisitors({ ...proposal.proposal.analysis, characterReactions: citizenVoices.reactions }));
+    }
+  // The hook returns a new array on each render; the signature changes only for a new line.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proposal?.proposal.id, cutsceneFor, voiceSignature]);
 
   useEffect(() => {
     if (proposal && screen === "desk") analysisPanel.current?.scrollIntoView({ block: "start" });
@@ -162,6 +186,7 @@ export function OpenWorld() {
     const decision = kind === "advance" ? "Lass ein Quartal verstreichen und analysiere die Entwicklung des Landes, offene Konflikte und die Folgen meiner bisherigen Entscheidungen." : draft.trim();
     if (!decision) { setError("Sag zuerst, was du in deinem Land verändern möchtest."); decisionInput.current?.focus(); return; }
     busyRef.current = true; setBusy("analyze"); setError(""); updateProposal(null); setReceipt(null);
+    playSoundEffect("decision");
     citizenVoices.cancel();
     const requestEpoch = epoch.current;
     try {
@@ -195,6 +220,7 @@ export function OpenWorld() {
       if (next.state.id !== current.state.id || next.state.revision !== current.state.revision + 1) throw new Error("Die Antwort passt nicht zum aktuellen Spielstand. Bitte die Seite neu laden, bevor du erneut bestätigst.");
       snapshotRef.current = next; setSnapshot(next); updateProposal(null); setNow(Date.now());
       setReceipt({ title: pending.proposal.analysis.title, consequences: response.appliedConsequences });
+      playSoundEffect("gavel");
       if (pending.proposal.kind === "decision") setDraft("");
       decisionInput.current?.scrollIntoView({ block: "center" });
     } catch (cause) { if (epoch.current === requestEpoch) setError(cause instanceof Error ? cause.message : "Die Entscheidung konnte nicht übernommen werden. Dein Stand bleibt erhalten."); }
@@ -205,10 +231,11 @@ export function OpenWorld() {
     const card = getConcept(id);
     if (!card) return "Dieser Begriff ist nicht in der Lernkartei. Verwende eine bekannte Begriffs-ID.";
     setLearning(previous => rememberConcept(previous, card.id, snapshotRef.current?.state.revision ?? 0));
+    playSoundEffect("learning");
     return `${card.title} wurde für später gemerkt.`;
   }
 
-  async function askTutor(text: string, conceptId?: ConceptId): Promise<TutorAnswer> {
+  async function askTutor(text: string, conceptId?: ConceptId, spoken = true): Promise<TutorAnswer> {
     const current = snapshotRef.current;
     if (!current) throw new Error("Gründe zuerst dein Land.");
     if (tutorBusy.current) throw new Error("Bitte warte auf die laufende Tutor-Antwort.");
@@ -221,6 +248,7 @@ export function OpenWorld() {
       const result = await requestJson<TutorAnswer>("/api/simulation/tutor", { snapshot: current, question: text.trim(), ...(conceptId ? { conceptId } : {}) });
       if (epoch.current !== requestEpoch || snapshotRef.current?.state.revision !== current.state.revision) throw new Error("Dein Spielstand hat sich verändert. Bitte stelle die Frage im neuen Kontext erneut.");
       setMessages(previous => [...previous, { role: "assistant" as const, text: result.answer, source: result.source === "gemma" ? "Gemma" : "Lernhilfe" }].slice(-24));
+      if (spoken) void speakProfessor(result.answer);
       return result;
     } catch (cause) {
       if (epoch.current === requestEpoch) setError(cause instanceof Error ? cause.message : "Die Frage konnte nicht beantwortet werden.");
@@ -230,7 +258,7 @@ export function OpenWorld() {
 
   const voiceBridge: VoiceBridge = {
     getContext: () => ({ mode: "open-simulation", state: snapshotRef.current?.state, pendingProposal: proposalRef.current?.proposal ?? null, concepts: concepts.map(card => ({ id: card.id, title: card.title })), instruction: "Entscheidungen sind frei formulierbar. propose_decision füllt nur den Text; die Person startet danach die Analyse und bestätigt die konkrete Vorschau am Bildschirm." }),
-    askTutor: text => askTutor(text),
+    askTutor: text => askTutor(text, undefined, false),
     proposeDecision: (text, revision) => {
       const current = snapshotRef.current;
       if (!current || current.state.revision !== revision) return "Der Spielstand hat sich geändert. Bitte den aktuellen Kontext erneut lesen.";
@@ -255,7 +283,7 @@ export function OpenWorld() {
   return <main className="pixel-shell">
     <header className="flex flex-wrap items-center justify-between gap-4 border-b-[length:var(--px-border)] border-[var(--px-ink)] pb-5">
       <div className="flex items-center gap-3"><Gruender size={40} bob={false} /><h1 className="font-pixel text-balance text-xl leading-tight sm:text-2xl">Wenn ich König von Deutschland wäre</h1></div>
-      {state && <PixelButton size="sm" variant="secondary" disabled={!!busy} onClick={() => { setSetupStep(1); setScreen("setup"); setError(""); }}>Neues Land</PixelButton>}
+      <div className="flex flex-wrap gap-2">{audioConfigured && <PixelButton size="sm" variant="secondary" aria-pressed={!muted} onClick={() => setMuted(!muted)}>{muted ? "Ton aus" : "Ton an"}</PixelButton>}{state && <PixelButton size="sm" variant="secondary" disabled={!!busy} onClick={() => { setSetupStep(1); setScreen("setup"); setError(""); }}>Neues Land</PixelButton>}</div>
     </header>
     <nav className="my-5 flex flex-wrap gap-2 border-0 p-0" aria-label="Spielbereiche">{navItems.filter(([id]) => state || id === "library").map(([id, label]) => <PixelButton key={id} size="sm" variant={screen === id ? "info" : "secondary"} aria-current={screen === id ? "page" : undefined} disabled={!!busy} onClick={() => { if (id === "library") setLearningFocus(undefined); setScreen(id); }}>{label}</PixelButton>)}</nav>
 
@@ -309,6 +337,7 @@ export function OpenWorld() {
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-2"><PixelCard><details className="pixel-details"><summary>Nachrichten</summary><div className="mt-4 space-y-4">{state.news.slice(0, 4).map(news => <article key={news.id} className="border-b-2 border-[var(--px-gray)] pb-4"><p className="font-pixel text-xs">{roundLabel(news.round)}</p><h4 className="mt-1 font-bold">{news.title}</h4><p className="mt-2 text-sm leading-relaxed">{news.text.length > 320 ? `${news.text.slice(0, 320).trim()} …` : news.text}</p></article>)}</div><PixelButton className="mt-4" size="sm" variant="secondary" onClick={() => setScreen("chronicle")}>Chronik öffnen</PixelButton></details></PixelCard>
         <PixelCard className="space-y-4"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><ProfessorIgel bob={false} size={40} /><h3 className="font-pixel text-xl">Professor Igel</h3></div><PixelButton variant="secondary" size="sm" aria-expanded={tutorOpen} aria-controls="world-tutor" onClick={() => setTutorOpen(previous => !previous)}>{tutorOpen ? "Schließen" : "Frage stellen"}</PixelButton></div>
           {tutorOpen && <div id="world-tutor" className="space-y-4"><div className="max-h-80 space-y-3 overflow-auto" role="log" aria-label="Tutor-Gespräch">{messages.map((message, index) => <div className={cn("border-2 border-[var(--px-ink)] p-3 text-sm", message.role === "user" ? "bg-[var(--px-purple-light)]" : "bg-[var(--px-white)]")} key={index}><p className="font-bold">{message.role === "user" ? "Du" : "Professor Igel"}</p><p className="mt-1 whitespace-pre-wrap leading-relaxed">{message.text}</p></div>)}</div><form className="space-y-3" onSubmit={event => { event.preventDefault(); const text = question; void askTutor(text).then(() => setQuestion(previous => previous === text ? "" : previous)).catch(() => {}); }}><label htmlFor="world-question">Deine Frage</label><textarea id="world-question" value={question} onChange={event => setQuestion(event.target.value)} maxLength={1500} placeholder="Was habe ich bei meiner Entscheidung übersehen?" required /><PixelButton type="submit" variant="tutor" disabled={tutoring || !!busy || !question.trim()}>{tutoring ? "Professor Igel denkt nach …" : "Frage stellen"}</PixelButton></form></div>}
+          {audioConfigured && !voiceConfigured && tutorOpen && <ProfessorVoice disabled={tutoring || !!busy} onQuestion={text => askTutor(text)} />}
           {voiceConfigured && tutorOpen && <VoicePanel pixel bridge={voiceBridge} contextVersion={`${state.id}:${state.revision}:${proposal?.proposal.id ?? "none"}`} configured={voiceConfigured} onTranscript={(source, text) => { setTutorOpen(true); setMessages(previous => [...previous, { role: source === "user" ? "user" as const : "assistant" as const, text, source: "Sprachagent" }].slice(-24)); }} />}
         </PixelCard>
       </div>

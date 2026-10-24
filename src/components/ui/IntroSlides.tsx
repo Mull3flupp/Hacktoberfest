@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { speakCharacter, stopCurrentSpeech } from "@/lib/audio/manager";
 import { characters } from "@/lib/simulation/characters";
 import { bodyFont, pixelFont } from "./fonts";
 import { CountingScene, ElectionNightScene, PeopleScene, VictoryScene } from "./introScenes";
@@ -61,6 +62,10 @@ export function IntroSlides({ onDone }: IntroSlidesProps) {
 
   const next = useCallback(() => { if (last) onDone(); else setIndex((value) => value + 1); }, [last, onDone]);
   const back = useCallback(() => setIndex((value) => Math.max(0, value - 1)), []);
+
+  // Die Erzählerin liest jede Folie vor; Überspringen beendet die Sprache.
+  useEffect(() => { void speakCharacter("erzaehler", `${slide.title} ${slide.text}`); }, [slide]);
+  useEffect(() => () => stopCurrentSpeech(), []);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { playSoundEffect, speakCharacter, stopCurrentSpeech, stopSoundEffect } from "@/lib/audio/manager";
+import { voiceForVisitor } from "@/lib/audio/voices";
 import { getCharacter, type CharacterId, type VisitorLook } from "@/lib/simulation/characters";
 import type { ActorReaction, CharacterReaction, WorldAnalysis } from "@/lib/simulation/types";
 import { bodyFont, pixelFont } from "./fonts";
@@ -134,12 +136,17 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
   const [arrived, setArrived] = useState(false);
   const [typed, setTyped] = useState(0);
   const current = visitors[index];
+  const initialVisitors = useRef(visitors);
+  const spokenLine = current ? `${index}:${voiceForVisitor(current.who)}:${current.quote}` : "";
   const quote = current ? `„${current.quote}“` : "";
 
   useEffect(() => {
     const dialog = dialogRef.current;
     dialog?.showModal();
-    return () => dialog?.close();
+    // Protestierende Gruppen bringen leise Geräuschkulisse mit.
+    const protest = initialVisitors.current.some((visitor) => memberCount(visitor) > 1 && visitor.stance === "oppose");
+    if (protest) playSoundEffect("protest", { loop: true });
+    return () => { dialog?.close(); stopCurrentSpeech(); stopSoundEffect("protest"); };
   }, []);
 
   // Kurze Einblendung von Ort und Uhrzeit
@@ -153,10 +160,21 @@ export function Cutscene({ visitors, decision, caption = "Deine Entscheidung", o
   useEffect(() => {
     if (phase !== "walk") return;
     setArrived(false); setTyped(0);
+    stopCurrentSpeech();
+    playSoundEffect("door-open");
+    const steps = setTimeout(() => playSoundEffect("footsteps"), reduced ? 0 : 400);
     const start = setTimeout(() => setArrived(true), reduced ? 0 : 450);
     const talk = setTimeout(() => setPhase("talk"), reduced ? 0 : 2500);
-    return () => { clearTimeout(start); clearTimeout(talk); };
+    return () => { clearTimeout(steps); clearTimeout(start); clearTimeout(talk); };
   }, [phase, index, reduced]);
+
+  // Der Besuch spricht seinen Satz mit eigener ElevenLabs-Stimme.
+  useEffect(() => {
+    if (phase !== "talk" || !current) return;
+    void speakCharacter(voiceForVisitor(current.who), current.quote);
+    return () => stopCurrentSpeech();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nur bei neuem Satz sprechen, nicht bei jedem Render
+  }, [phase, spokenLine]);
 
   // Schreibmaschinen-Effekt in der Dialogbox
   useEffect(() => {
