@@ -32,12 +32,13 @@ export function StatTile({ label, value, change, className }: StatTileProps) {
   );
 }
 
-export type InstitutionStatus = "stabil" | "unter Druck" | "ausgesetzt";
+export type InstitutionStatus = "stabil" | "unter Druck" | "ausgesetzt" | "nicht gesichert";
 
 const statusStyles: Record<InstitutionStatus, string> = {
   stabil: "bg-[var(--px-green-light)]",
   "unter Druck": "bg-[var(--px-yellow-light)]",
   ausgesetzt: "bg-[var(--px-red-light)]",
+  "nicht gesichert": "bg-[var(--px-yellow-light)]",
 };
 
 /** Status einer Institution, z. B. "Gericht: unter Druck". */

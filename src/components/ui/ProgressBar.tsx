@@ -27,11 +27,8 @@ export function ProgressBar({ value, max, label = "Fortschritt", className }: Pr
       {Array.from({ length: max }, (_, i) => (
         <div
           key={i}
-          className={cn(
-            "h-full flex-1",
-            i < done ? "bg-[var(--px-green)] shadow-[inset_0_-3px_0_var(--px-green-dark)]" : "bg-[var(--px-white)]",
-          )}
-        />
+          className="h-full flex-1 bg-[var(--px-white)]"
+        ><div className="h-full bg-[var(--px-green)] shadow-[inset_0_-3px_0_var(--px-green-dark)]" style={{ width: `${Math.max(0, Math.min(1, done - i)) * 100}%` }} /></div>
       ))}
     </div>
   );

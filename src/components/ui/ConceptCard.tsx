@@ -19,7 +19,7 @@ export function ConceptCard({ term, definition, example, source, saved, onExplai
   return (
     <PixelCard tone="purple" eyebrow="Lernbegriff">
       <div className="flex items-start gap-3">
-        <ProfessorIgel size={56} />
+        <ProfessorIgel size={56} bob={false} />
         <div className="min-w-0">
           <h3 className="font-pixel text-2xl leading-tight break-words">{term}</h3>
           <p className="mt-1 text-base leading-snug">{definition}</p>

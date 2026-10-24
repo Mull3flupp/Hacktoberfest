@@ -82,23 +82,19 @@ export function SceneCard({
         {options.map((o, i) => {
           const selected = o.id === selectedId;
           return (
-            <button
+            <label
               key={o.id}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              disabled={locked}
-              onClick={() => onSelect(o.id)}
               className={cn(
-                "flex w-full items-center gap-3 border-[length:var(--px-border)] p-3 text-left",
+                "relative flex w-full cursor-pointer items-center gap-3 border-[length:var(--px-border)] p-3 text-left font-normal",
                 "mb-[var(--px-shadow)] active:translate-y-[var(--px-shadow)] active:shadow-none",
-                "focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--px-yellow)]",
-                "disabled:cursor-default disabled:active:translate-y-0",
+                "focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-[color:var(--px-blue)]",
+                locked && "cursor-default",
                 selected
                   ? "border-[var(--px-blue-dark)] bg-[var(--px-blue-light)] shadow-[0_var(--px-shadow)_0_var(--px-blue-dark)]"
                   : "border-[var(--px-ink)] bg-[var(--px-white)] shadow-[0_var(--px-shadow)_0_var(--px-gray-dark)]",
               )}
             >
+              <input type="radio" name={titleId} value={o.id} checked={selected} disabled={locked} onChange={() => onSelect(o.id)} className="sr-only" />
               <span
                 className={cn(
                   "font-pixel grid size-9 shrink-0 place-items-center border-[length:var(--px-border)] text-lg",
@@ -113,7 +109,7 @@ export function SceneCard({
                 <span className="block font-bold leading-snug">{o.label}</span>
                 {o.detail && <span className="block text-sm leading-snug text-[#4a4658]">{o.detail}</span>}
               </span>
-            </button>
+            </label>
           );
         })}
       </div>
