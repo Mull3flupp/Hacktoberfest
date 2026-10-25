@@ -1,4 +1,4 @@
-# Wenn ich König von Deutschland wäre
+# Polyvox
 
 Eine offene politische Regierungssimulation: Gründe ein fiktives Land, formuliere eigene Beschlüsse und erlebe ihre Folgen. Nach dem geführten Verfassungseinstieg analysiert Gemma jede freie Entscheidung individuell – etwa „Ich will den Dönerpreis auf 2 € begrenzen“. Erst nach deiner ausdrücklichen Bestätigung werden die vorgeschlagenen Folgen übernommen.
 
@@ -56,7 +56,7 @@ Finn, Oma Gisela, Bauer Heinz, Lea, Mika, Karen und Konsti sind die sieben Origi
 
 Die Anbindung liegt in [character-reactions.ts](src/lib/server/character-reactions.ts), die Personas in [characters.ts](src/lib/simulation/characters.ts). `/api/simulation/analyze` macht nur den Aufruf für die Weltfolgen (bis zu 75 Sekunden). Anschließend lädt der Browser über `/api/simulation/characters` jede Stimme separat, höchstens zwei gleichzeitig. Pro Stimme gelten 45 Sekunden je Versuch; vorübergehende Fehler werden einmal mit kurzer Pause wiederholt. Quoten- und Zugangsfehler werden nicht automatisch wiederholt. Fehlende Stimmen lassen sich gezielt nachladen, ohne bereits erfolgreiche Stimmen oder die Folgenanalyse erneut anzufragen.
 
-Eine Bürgerstimme erhält eine eigene HMAC-Signatur, gebunden an Welt, Vorschau und Zielrevision. Sie kann keine Kennzahlen ändern und gehört nicht zum bestätigungspflichtigen Weltzustand. Der Browser speichert die Stimmen des letzten bestätigten Beschlusses separat unter `koenig-citizen-voices-v1`; verspätete Antworten dürfen weiter eintreffen, solange derselbe Beschluss aktuell ist. Beim nächsten Beschluss wird die eigene vorherige Stimme signiert als Kontext übergeben. Andere Figuren, fremde Welten und nachträglich veränderte Stimmen werden serverseitig zurückgewiesen. Abgebrochene Vorschauen werden beim Neuladen nicht wiederhergestellt. Nach Ablauf der zehnminütigen Vorschau können dafür keine neuen Stimmen angefragt werden.
+Eine Bürgerstimme erhält eine eigene HMAC-Signatur, gebunden an Welt, Vorschau und Zielrevision. Sie kann keine Kennzahlen ändern und gehört nicht zum bestätigungspflichtigen Weltzustand. Der Browser speichert die Stimmen des letzten bestätigten Beschlusses separat unter `polyvox-citizen-voices-v1`; verspätete Antworten dürfen weiter eintreffen, solange derselbe Beschluss aktuell ist. Beim nächsten Beschluss wird die eigene vorherige Stimme signiert als Kontext übergeben. Andere Figuren, fremde Welten und nachträglich veränderte Stimmen werden serverseitig zurückgewiesen. Abgebrochene Vorschauen werden beim Neuladen nicht wiederhergestellt. Nach Ablauf der zehnminütigen Vorschau können dafür keine neuen Stimmen angefragt werden.
 
 Die Bestätigung bleibt ohne Modellaufruf möglich, auch wenn noch Stimmen laden oder fehlen. Alte signierte Spielstände mit `characterReactions` bleiben gültig. Fehlende neue Stimmen werden als ausstehend angezeigt und nicht durch erfundene Zitate ersetzt. Die Büro-Sequenz öffnet sich direkt nach der Folgenanalyse mit den bereits bekannten Betroffenen; über „Im Büro ansehen“ lassen sich später auch die inzwischen geladenen festen Figuren ansehen. Die laufende Szene verändert ihre Besucher nicht während des Lesens.
 
@@ -79,7 +79,9 @@ Der Server prüft die strukturierte Modellausgabe und begrenzt technisch unplaus
 
 HMAC-Signaturen schützen Weltzustand und Vorschläge vor Veränderungen im Browser. Eine Vorschau gilt zehn Minuten und ist an Welt-ID, Revision und den exakten Ausgangszustand gebunden. Die Bestätigung ruft kein weiteres Modell auf. Diese Integritätsprüfung ersetzt keine Benutzeranmeldung und verwaltet keinen gemeinsamen Mehrspieler-Weltstand.
 
-Spielstand, Lernkartei und Entwurf liegen browsergebunden in LocalStorage unter der Version `koenig-open-world-v3`. Es gibt keine Datenbank und keine Synchronisation zwischen Geräten. Alte Prototyp-Spielstände werden nicht als neue Welt übernommen. Ein neues Land ersetzt den aktiven Weltstand und behält die Lernkartei.
+Spielstand und Entwurf liegen browsergebunden unter `polyvox-open-world-v3`; die persönliche Lernkartei liegt unabhängig davon unter `polyvox-learning-collection-v2`. Bestehende Browserdaten werden beim Laden aus den früheren Speicherschlüsseln übernommen. Es gibt keine Datenbank und keine Synchronisation zwischen Geräten. Alte Prototyp-Spielstände werden nicht als neue Welt übernommen. Ein neues Land ersetzt den aktiven Weltstand und behält die Lernkartei.
+
+Nach jedem bestätigten politischen Beschluss fordert der Browser separat ein bis drei KI-generierte Lernkarten zu den analysierten Folgen an. Vorschauen und verworfene Beschlüsse erzeugen keine Karten. Die sechs redaktionellen Grundkarten bleiben bestehen. Die Sammlung lässt sich durchsuchen und filtern; Wiederholungsfortschritt bleibt auch bei einem Länderwechsel erhalten. Eine fehlerhafte Modellantwort verhindert den Beschluss nicht und erzeugt keine erfundene Karte.
 
 Das Gedächtnis ist begrenzt: Der Zustand hält höchstens 16 Chronikeinträge, 32 Weltfakten, 12 Nachrichten und 18 offene Folgen. Neue Modellaufrufe erhalten einen kompakten Ausschnitt der jüngsten Chronik plus Weltfakten und offene Folgen. Ältere Texte werden nicht vollständig archiviert; unbegrenztes Weiterspielen bedeutet kein unbegrenztes Modellgedächtnis.
 
@@ -96,12 +98,14 @@ Next.js App Router, React, TypeScript, Tailwind und Zod.
 | `src/lib/server/world-model.ts` | Individuelle Folgenanalyse und Tutor mit kompaktem Weltkontext |
 | `src/lib/server/gemma-client.ts` | Serverseitiger Google-/OpenRouter-Aufruf und sichere Anbieterfehler |
 | `src/lib/game/learning.ts`, `src/data/concepts.json` | Sechs kuratierte Lernbegriffe, Quellen und Wiederholungsregeln |
+| `src/lib/game/learning-collection.ts` | Persönliche Sammlung, Migration, Duplikatschutz und Fälligkeit über Ländergrenzen hinweg |
 
 | Endpunkt | Anfrage → Antwort |
 | --- | --- |
 | `POST /api/simulation/start` | `{ setup }` → `{ state, signature }` |
 | `POST /api/simulation/analyze` | `{ snapshot, decision, kind? }` → `{ proposal, signature }`; `kind` ist `decision` oder `advance` |
 | `POST /api/simulation/commit` | `{ snapshot, analysis }` → `{ snapshot, appliedConsequences }`; `analysis` ist die vollständige signierte Vorschau |
+| `POST /api/simulation/learning-cards` | `{ snapshot, analysis, existing }` → `{ cards }`; nur für einen bestätigten Beschluss |
 | `POST /api/simulation/tutor` | `{ snapshot, question, conceptId? }` → `{ answer, conceptIds, source: "gemma" }` |
 | `POST /api/voice-session` | Kurzlebiger WebRTC-Gesprächstoken für den Browser |
 | `GET /api/health` | Konfigurierte Anbieterfähigkeiten ohne Zugangsdaten |

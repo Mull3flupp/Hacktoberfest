@@ -67,10 +67,13 @@ export interface ConceptCard {
   transfer: QuizQuestion;
 }
 export interface LearningProgress {
-  conceptId: ConceptId;
+  conceptId: string;
   stage: number;
   nextReviewAt: string;
+  /** Legacy campaign/prototype revision threshold. */
   reviewAfterRevision: number;
+  /** Open simulation: confirmed decisions across all countries. */
+  reviewAfterDecision?: number;
   attempts: number;
   lastCorrect: boolean | null;
 }

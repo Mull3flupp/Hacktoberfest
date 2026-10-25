@@ -57,7 +57,7 @@ function installDependencies(runtime) {
 
 export function runtimeDirectory(root) {
   const key = createHash("sha256").update(resolve(root)).digest("hex").slice(0, 12);
-  return join(tmpdir(), `koenig-runtime-${key}`);
+  return join(tmpdir(), `polyvox-runtime-${key}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

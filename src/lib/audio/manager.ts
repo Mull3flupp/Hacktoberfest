@@ -1,6 +1,7 @@
 "use client";
 
 import { RANDOM_VOICE_COUNTS, type VoiceGender, type VoiceKey } from "./voices";
+import { readBrandedStorage } from "../branded-storage";
 
 /**
  * Zentrale Audiosteuerung im Browser: eine Sprachspur (nie überlappend), kurze Effekte
@@ -11,8 +12,10 @@ import { RANDOM_VOICE_COUNTS, type VoiceGender, type VoiceKey } from "./voices";
 export type SoundEffect = "door-open" | "footsteps" | "gavel" | "decision" | "protest" | "learning";
 type Delivery = "neutral" | "expressive";
 
-const MUTE_KEY = "koenig-audio-muted";
-const NPC_VOICES_KEY = "koenig-npc-voices-v2";
+const MUTE_KEY = "polyvox-audio-muted";
+const PREVIOUS_MUTE_KEY = "koenig-audio-muted";
+const NPC_VOICES_KEY = "polyvox-npc-voices-v2";
+const PREVIOUS_NPC_VOICES_KEY = "koenig-npc-voices-v2";
 const MUSIC_VOLUME = 0.12;
 const MUSIC_DUCKED = 0.03;
 const EFFECT_VOLUME: Record<SoundEffect, number> = { "door-open": 0.5, footsteps: 0.35, gavel: 0.6, decision: 0.45, protest: 0.18, learning: 0.45 };
@@ -40,7 +43,7 @@ function assignedVoice(key: string): string {
   if (!npcVoicesLoaded) {
     npcVoicesLoaded = true;
     try {
-      const saved = JSON.parse(localStorage.getItem(NPC_VOICES_KEY) || "{}");
+      const saved = JSON.parse(readBrandedStorage(NPC_VOICES_KEY, PREVIOUS_NPC_VOICES_KEY) || "{}");
       npcVoices = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
     } catch { npcVoices = {}; }
   }
@@ -63,7 +66,7 @@ function assignedVoice(key: string): string {
 
 function readMuted() {
   if (!isBrowser()) return false;
-  try { return localStorage.getItem(MUTE_KEY) === "1"; } catch { return false; }
+  try { return readBrandedStorage(MUTE_KEY, PREVIOUS_MUTE_KEY) === "1"; } catch { return false; }
 }
 
 export function isMuted() { return muted; }

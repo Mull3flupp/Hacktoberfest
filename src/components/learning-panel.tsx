@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { concepts, getConcept } from "@/lib/game/engine";
 import { dueCards, rememberConcept, reviewConcept } from "@/lib/game/learning";
+import { MAX_DYNAMIC_CARDS, type DynamicLearningCard } from "@/lib/game/learning-collection";
 import type { ConceptId, LearningProgress } from "@/lib/game/types";
 import { ConceptCard, FeedbackSheet, PixelButton, PixelCard, ProfessorIgel, SceneCard } from "./ui";
 
@@ -20,10 +21,17 @@ export interface LearningPanelProps {
   onAskTutor?: (question: string, conceptId?: ConceptId) => Promise<TutorAnswer>;
   initialConceptId?: ConceptId;
   pixel?: boolean;
+  dynamicCards?: DynamicLearningCard[];
+  jobs?: { proposalId: string; status: "pending" | "failed"; error?: string }[];
+  skippedGenerations?: number;
+  onRetryJob?: (proposalId: string) => void;
 }
 
-export function LearningPanel({ progress, revision, onChange, onClose, onAskTutor, initialConceptId, pixel }: LearningPanelProps) {
-  const [selectedId, setSelectedId] = useState<ConceptId>(initialConceptId ?? "social-contract");
+export function LearningPanel({ progress, revision, onChange, onClose, onAskTutor, initialConceptId, pixel,
+  dynamicCards = [], jobs = [], skippedGenerations = 0, onRetryJob }: LearningPanelProps) {
+  const [selectedId, setSelectedId] = useState<string>(initialConceptId ?? "social-contract");
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "editorial" | "generated" | "due">("all");
   const [mode, setMode] = useState<"explore" | "quiz">("explore");
   const [questionKind, setQuestionKind] = useState<"understanding" | "transfer">("understanding");
   const [answerIndex, setAnswerIndex] = useState<number | null>(null);
@@ -53,24 +61,34 @@ export function LearningPanel({ progress, revision, onChange, onClose, onAskTuto
     tutorPending.current = false; answered.current = false;
   }, [initialConceptId]);
 
-  const due = dueCards(progress, revision, now);
-  const selected = getConcept(selectedId) ?? concepts[0];
+  const due = dueCards(progress, revision, now, dynamicCards, pixel);
+  const allCards = [...concepts, ...dynamicCards];
+  const needle = query.trim().toLocaleLowerCase("de-DE");
+  const filteredCards = allCards.filter(card => {
+    const generated = "generated" in card;
+    if (filter === "editorial" && generated || filter === "generated" && !generated
+      || filter === "due" && !due.some(item => item.conceptId === card.id)) return false;
+    return !needle || `${card.title} ${card.explanation} ${generated ? card.origin.decision : ""}`.toLocaleLowerCase("de-DE").includes(needle);
+  });
+  const selected = filteredCards.find(card => card.id === selectedId) ?? filteredCards[0] ?? concepts[0];
+  const generated = "generated" in selected;
+  const selectedCurated = getConcept(selected.id) ?? concepts[0];
   const saved = progress.find(item => item.conceptId === selected.id);
-  const question = selected[questionKind];
+  const question = generated ? selected.questions[(saved?.attempts ?? 0) % selected.questions.length] : selected[questionKind];
   const correct = answerIndex === question.correctIndex;
 
-  function open(id: ConceptId, quiz = false) {
+  function open(id: string, quiz = false) {
     epoch.current += 1;
     setSelectedId(id); setMode(quiz ? "quiz" : "explore");
     const previous = progressRef.current.find(item => item.conceptId === id);
     setQuestionKind((previous?.attempts ?? 0) % 2 ? "transfer" : "understanding");
     setAnswerIndex(null); setChoiceId(null); setTutorAnswer(null); setTutorError(""); setTutorBusy(false);
     tutorPending.current = false; answered.current = false;
-    if (quiz && !previous) onChange(rememberConcept(progressRef.current, id, revision));
+    if (quiz && !previous) onChange(rememberConcept(progressRef.current, id, revision, new Date(), dynamicCards));
   }
 
   function remember() {
-    const next = rememberConcept(progressRef.current, selected.id, revision);
+    const next = rememberConcept(progressRef.current, selected.id, revision, new Date(), dynamicCards);
     progressRef.current = next;
     onChange(next);
   }
@@ -78,8 +96,8 @@ export function LearningPanel({ progress, revision, onChange, onClose, onAskTuto
   function answer(index: number) {
     if (answered.current) return;
     answered.current = true;
-    const remembered = rememberConcept(progressRef.current, selected.id, revision);
-    const next = reviewConcept(remembered, selected.id, index === question.correctIndex, revision);
+    const remembered = rememberConcept(progressRef.current, selected.id, revision, new Date(), dynamicCards);
+    const next = reviewConcept(remembered, selected.id, index === question.correctIndex, revision, new Date(), dynamicCards);
     progressRef.current = next;
     setAnswerIndex(index); onChange(next);
   }
@@ -93,7 +111,7 @@ export function LearningPanel({ progress, revision, onChange, onClose, onAskTuto
       ? `Erkläre mir ${selected.title} anhand des aktuellen Konflikts in meinem Kabinett. Nenne ein konkretes Risiko und eine Grenze des Begriffs.`
       : `Erkläre meine Lernantwort zu ${selected.title}: Frage: ${question.question} Meine Antwort: ${question.options[answerIndex]}. Hinterlegte richtige Antwort: ${question.options[question.correctIndex]}. Warum ist die hinterlegte Antwort fachlich richtig? Bewerte keine politische Präferenz.`;
     try {
-      const result = await onAskTutor(prompt, selected.id);
+      const result = await onAskTutor(prompt, generated ? undefined : selected.id as ConceptId);
       if (mounted.current && epoch.current === requestEpoch) setTutorAnswer(result);
     } catch {
       if (mounted.current && epoch.current === requestEpoch) setTutorError("Der Tutor ist gerade nicht erreichbar. Die Erklärung auf dieser Karte bleibt verfügbar.");
@@ -113,22 +131,27 @@ export function LearningPanel({ progress, revision, onChange, onClose, onAskTuto
 
   function nextReviewLabel(item: LearningProgress) {
     if (due.some(card => card.conceptId === item.conceptId)) return "Jetzt wiederholen";
-    if (item.lastCorrect === null && item.reviewAfterRevision > revision) return "Nach deinem nächsten Beschluss wieder fällig";
+    if (item.lastCorrect === null && (pixel ? item.reviewAfterDecision ?? item.reviewAfterRevision : item.reviewAfterRevision) > revision) return "Nach deinem nächsten Beschluss wieder fällig";
     if (item.lastCorrect === false) return "Nach dem nächsten Beschluss oder in Kürze wieder fällig";
     return `Wiederholung ab ${new Date(item.nextReviewAt).toLocaleDateString("de-DE")}`;
   }
 
   if (pixel) return <section className="space-y-6 py-3" aria-labelledby="learning-title">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="learning-title" className="font-pixel text-3xl">Lernkarten</h2><PixelButton size="sm" variant="secondary" onClick={onClose}>Zurück zum Spiel →</PixelButton></div>
+    <p className="text-sm">6 redaktionelle Grundlagen · {dynamicCards.length} KI-generierte Karten aus bestätigten Beschlüssen</p>
+    {jobs.some(job => job.status === "pending") && <p role="status" className="text-sm">Neue Lernkarten werden nach dem Beschluss erstellt …</p>}
+    {jobs.filter(job => job.status === "failed").map(job => <PixelCard key={job.proposalId} tone="red" role="alert"><p>{job.error ?? "Für einen Beschluss konnte keine gültige Lernkarte erstellt werden."}</p>{onRetryJob && <PixelButton size="sm" variant="secondary" className="mt-3" onClick={() => onRetryJob(job.proposalId)}>Erneut versuchen</PixelButton>}</PixelCard>)}
+    {(skippedGenerations > 0 || dynamicCards.length >= MAX_DYNAMIC_CARDS) && <p role="status" className="text-sm">{skippedGenerations} Kartenerstellungen wurden wegen Duplikaten oder der Sammlungsgrenze übersprungen. Vorhandene Karten und Fortschritte bleiben erhalten.</p>}
     {due.length > 0 && <PixelCard><div className="flex flex-wrap items-center justify-between gap-4"><p className="text-sm">{due.length} {due.length === 1 ? "Karte fällig" : "Karten fällig"}</p><PixelButton size="sm" variant="secondary" onClick={() => open(due[0].conceptId, true)}>Wiederholen</PixelButton></div></PixelCard>}
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Begriff auswählen">{concepts.map(card => <PixelButton size="sm" variant={card.id === selected.id ? "tutor" : "secondary"} aria-pressed={card.id === selected.id} key={card.id} onClick={() => open(card.id)}>{card.title}{progress.some(item => item.conceptId === card.id) ? " ✓" : ""}</PixelButton>)}</div>
+    <div className="flex flex-wrap gap-3"><label className="min-w-52 flex-1">Sammlung durchsuchen<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Beschluss oder Lernpunkt" /></label><label>Filtern<select value={filter} onChange={event => setFilter(event.target.value as typeof filter)}><option value="all">Alle Karten</option><option value="editorial">Grundlagen</option><option value="generated">Aus Beschlüssen</option><option value="due">Jetzt fällig</option></select></label></div>
+    <div className="max-h-72 overflow-auto flex flex-wrap content-start gap-2" role="group" aria-label="Lernkarte auswählen">{filteredCards.map(card => <PixelButton size="sm" variant={card.id === selected.id ? "tutor" : "secondary"} aria-pressed={card.id === selected.id} key={card.id} onClick={() => open(card.id)}>{card.title}{"generated" in card ? " · KI" : ""}{progress.some(item => item.conceptId === card.id) ? " ✓" : ""}</PixelButton>)}{!filteredCards.length && <p>Keine passenden Karten gefunden.</p>}</div>
     <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-      <div className="min-w-0 space-y-5">{mode === "explore" ? <><ConceptCard term={selected.title} definition={selected.explanation} example={contextualHooks[selected.id]} source={selected.sources[0]?.title} saved={!!saved} onSave={remember} onExplain={onAskTutor ? () => void explainAnswer() : undefined} /><PixelButton variant="tutor" disabled={tutorBusy} onClick={() => open(selected.id, true)}>Verständnis prüfen</PixelButton></> : <PixelCard><SceneCard eyebrow={questionKind === "understanding" ? "Verständnischeck" : "Transferfrage"} title={question.question} situation={`Was passt zu „${selected.title}“?`} speaker={<ProfessorIgel bob={false} size={48} />} speakerName="Professor Igel" options={question.options.map((option, index) => ({ id: String(index), label: option }))} selectedId={choiceId} onSelect={setChoiceId} onConfirm={() => { if (choiceId !== null) answer(Number(choiceId)); }} confirmLabel="Antwort prüfen" locked={answerIndex !== null} /></PixelCard>}
+      <div className="min-w-0 space-y-5">{generated && <PixelCard tone="blue"><p className="text-sm font-bold">KI-generierte Lernkarte</p><p className="mt-2 text-sm">Aus dem Beschluss „{selected.origin.decisionTitle}“ in {selected.origin.countryName}: {selected.origin.decision}</p></PixelCard>}{mode === "explore" ? <><ConceptCard term={selected.title} definition={selected.explanation} example={generated ? selected.learningPoint : contextualHooks[selected.id as ConceptId]} source={generated ? "KI-generiert" : selected.sources[0]?.title} saved={!!saved} onSave={remember} onExplain={onAskTutor ? () => void explainAnswer() : undefined} /><PixelButton variant="tutor" disabled={tutorBusy} onClick={() => open(selected.id, true)}>Verständnis prüfen</PixelButton></> : <PixelCard><SceneCard eyebrow={generated ? "Beschluss verstehen" : questionKind === "understanding" ? "Verständnischeck" : "Transferfrage"} title={question.question} situation={`Was passt zu „${selected.title}“?`} speaker={<ProfessorIgel bob={false} size={48} />} speakerName="Professor Igel" options={question.options.map((option, index) => ({ id: String(index), label: option }))} selectedId={choiceId} onSelect={setChoiceId} onConfirm={() => { if (choiceId !== null) answer(Number(choiceId)); }} confirmLabel="Antwort prüfen" locked={answerIndex !== null} /></PixelCard>}
         <div aria-live="polite">{tutorBusy && <p role="status" className="text-sm">Antwort wird erstellt …</p>}{tutorError && <PixelCard tone="red" role="alert">{tutorError}</PixelCard>}{tutorAnswer && <PixelCard title="Professor Igel"><p className="whitespace-pre-wrap text-sm leading-relaxed">{tutorAnswer.answer}</p></PixelCard>}</div>
       </div>
-      <PixelCard className="space-y-4"><p className="text-sm">{saved ? nextReviewLabel(saved) : "Noch nicht gemerkt"}</p><details className="pixel-details"><summary>Quellen & Grenzen</summary><p className="mt-3 text-sm leading-relaxed">{selected.limitation}</p><ul className="pixel-list mt-3 text-sm">{selected.sources.map(source => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a></li>)}</ul></details></PixelCard>
+      <PixelCard className="space-y-4"><p className="text-sm">{saved ? nextReviewLabel(saved) : "Noch nicht gemerkt"}</p><details className="pixel-details"><summary>Quellen & Grenzen</summary>{generated ? <p className="mt-3 text-sm leading-relaxed">Diese Karte wurde aus einer Gemma-Analyse erzeugt und nicht redaktionell geprüft. Prüfe strittige Fakten und die begründete Antwort kritisch.</p> : <><p className="mt-3 text-sm leading-relaxed">{selected.limitation}</p><ul className="pixel-list mt-3 text-sm">{selected.sources.map(source => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a></li>)}</ul></>}</details></PixelCard>
     </div>
-    <FeedbackSheet open={mode === "quiz" && answerIndex !== null} tone={correct ? "correct" : "wrong"} title={correct ? "Richtig" : "Nicht richtig"} actionLabel={due.some(item => item.conceptId !== selected.id) ? "Nächste Lernkarte" : "Zurück zur Karte"} onAction={() => { const next = due.find(item => item.conceptId !== selected.id); open(next?.conceptId ?? selected.id, !!next); }}><p>{question.explanation}</p>{!correct && <p className="mt-2"><b>Richtige Antwort:</b> {question.options[question.correctIndex]}</p>}</FeedbackSheet>
+    <FeedbackSheet open={mode === "quiz" && answerIndex !== null} tone={correct ? "correct" : "wrong"} title={correct ? "Richtig" : "Nicht richtig"} actionLabel={due.some(item => item.conceptId !== selected.id) ? "Nächste Lernkarte" : "Zurück zur Karte"} onAction={() => { const next = due.find(item => item.conceptId !== selected.id); open(next?.conceptId ?? selected.id, !!next); }}><p>{question.explanation}</p>{"evidence" in question && typeof question.evidence === "string" && <p className="mt-2 text-sm"><b>Bezug aus der Analyse:</b> „{question.evidence}“</p>}{!correct && <p className="mt-2"><b>Richtige Antwort:</b> {question.options[question.correctIndex]}</p>}</FeedbackSheet>
   </section>;
 
   return <section aria-labelledby="learning-title">
@@ -151,8 +174,8 @@ export function LearningPanel({ progress, revision, onChange, onClose, onAskTuto
       <p className="eyebrow">{mode === "quiz" ? questionKind === "understanding" ? "Verständnischeck" : "Auf einen neuen Fall übertragen" : "Dein Denkwerkzeug"}</p>
       <h3 id="selected-concept-title">{selected.title}</h3>
       {mode === "explore" ? <>
-        <p>{contextualHooks[selected.id]}</p>
-        <details><summary>Den Begriff nachschlagen</summary><p className="card-footer">{selected.explanation}</p><p className="muted">Wo die Erklärung an ihre Grenzen kommt: {selected.limitation}</p></details>
+        <p>{contextualHooks[selectedCurated.id]}</p>
+        <details><summary>Den Begriff nachschlagen</summary><p className="card-footer">{selectedCurated.explanation}</p><p className="muted">Wo die Erklärung an ihre Grenzen kommt: {selectedCurated.limitation}</p></details>
         <div className="row card-footer"><button className="primary" onClick={remember} disabled={!!saved}>{saved ? "In deinen Notizen gespeichert" : "Für später merken"}</button><button onClick={() => open(selected.id, true)}>{saved ? "Verständnis prüfen" : "Merken & kurz prüfen"}</button>{onAskTutor && <button onClick={() => void explainAnswer()} disabled={tutorBusy}>{tutorBusy ? "Tutor denkt nach …" : "Auf meinen Spielweg beziehen"}</button>}</div>
       </> : <>
         <p>{question.question}</p>
@@ -167,7 +190,7 @@ export function LearningPanel({ progress, revision, onChange, onClose, onAskTuto
       <div aria-live="polite">{tutorError && <p className="notice error">{tutorError}</p>}{tutorAnswer && <div className="notice"><span className="badge">{tutorAnswer.source === "gemma" ? "Gemma" : "Hinterlegte Lernhilfe"}</span><p className="card-footer" style={{ whiteSpace: "pre-wrap" }}>{tutorAnswer.answer}</p></div>}</div>
 
       <p className="muted card-footer">{saved ? nextReviewLabel(saved) : "Merken lässt diesen Begriff später wieder auftauchen."}</p>
-      <details><summary>Quellen und Grenzen</summary><p className="muted card-footer">{selected.limitation}</p><ul>{selected.sources.map(source => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a></li>)}</ul></details>
+      <details><summary>Quellen und Grenzen</summary><p className="muted card-footer">{selectedCurated.limitation}</p><ul>{selectedCurated.sources.map(source => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a></li>)}</ul></details>
     </article>
 
     <p className="muted">Hier werden Begriffe geprüft, keine politischen Vorlieben. Gemerkte Karten kehren nach einem weiteren Beschluss zurück. Nach richtigen Antworten liegen ein, drei und sieben Tage zwischen den Wiederholungen; falsche Antworten kommen früher wieder.</p>

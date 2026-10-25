@@ -1,4 +1,4 @@
-# Erster Prototyp: Wenn ich König von Deutschland wäre
+# Erster Prototyp: Polyvox
 
 Grundlage: Project Pack vom 24.10.2026. Die Oberfläche bleibt bewusst schlicht und austauschbar.
 

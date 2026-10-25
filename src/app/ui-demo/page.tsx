@@ -206,7 +206,7 @@ export default function UiDemoPage() {
         <Gruender size={64} />
         <div>
           <h1 className="font-pixel text-3xl leading-tight">UI-Demo</h1>
-          <p className="text-sm">Wenn ich König von Deutschland wär</p>
+          <p className="text-sm">Polyvox</p>
           <p className="text-sm">Designvorschau mit Beispieldaten · <a href="/">Zum Spiel</a></p>
         </div>
       </header>

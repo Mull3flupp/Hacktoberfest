@@ -6,12 +6,15 @@ import { POST as analyze } from "../src/app/api/simulation/analyze/route";
 import { POST as characterVoice } from "../src/app/api/simulation/characters/route";
 import type { SignedCharacterVoice } from "../src/lib/simulation/voices";
 import { POST as commit } from "../src/app/api/simulation/commit/route";
+import { POST as learningCards } from "../src/app/api/simulation/learning-cards/route";
 import { POST as tutor } from "../src/app/api/simulation/tutor/route";
 import { createWorld } from "../src/lib/simulation/state";
 import { characters } from "../src/lib/simulation/characters";
 import { characterSystemPrompt } from "../src/lib/server/character-reactions";
 import type { SignedWorld, SignedWorldProposal, WorldAnalysis } from "../src/lib/simulation/types";
 import { modelConfig, requestJsonModel } from "../src/lib/server/gemma-client";
+import { acceptGeneratedCards, confirmLearningDecision, emptyCollection, MAX_DYNAMIC_CARDS, readLearningCollection, type DynamicLearningCard } from "../src/lib/game/learning-collection";
+import { dueCards, reviewConcept } from "../src/lib/game/learning";
 import { signProposal, signWorld, verifyProposal, verifyWorld, verifyCharacterVoice } from "../src/lib/server/simulation-signing";
 
 const envNames = ["GEMMA_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY", "GEMMA_BASE_URL", "GEMMA_MODEL", "GEMMA_PROVIDER", "SIMULATION_SIGNING_KEY"] as const;
@@ -31,6 +34,7 @@ afterEach(() => {
 });
 
 const setup = { countryName: "Testland", vision: "Bezahlbares Essen und Freiheit", goals: ["housing", "rights"], government: "parliament" };
+const now = new Date("2026-10-25T10:00:00.000Z");
 function snapshot() { return signWorld(createWorld(setup)); }
 function request(path: string, body: unknown) {
   return new Request(`http://localhost:3000/api/simulation/${path}`, {
@@ -125,6 +129,105 @@ test("commit applies the signed model effects without any further model request"
   assert.equal(state.pending.length, 1);
   assert.ok(state.facts.some((fact) => fact.includes("Dönerpreisobergrenze")));
   assert.deepEqual(state.lastAnalysis?.characterReactions, analysis.proposal.analysis.characterReactions);
+});
+
+const validLearningCard = {
+  title: "Angebot bei Preisgrenzen", decisionConnection: "Die Dönerpreisgrenze von 2 € kann das Angebot verändern.",
+  learningPoint: "Ohne Ausgleich kann ein niedriger Preis die Marge der Betriebe verkleinern.",
+  dedupeKey: "preisgrenze-angebot", questions: [{
+    question: "Welche mögliche Folge nennt die Analyse für die Preisgrenze?",
+    options: ["Einige Betriebe reduzieren ihr Angebot.", "Alle Betriebe erhöhen ihr Angebot.", "Die Kosten sinken sicher auf null."],
+    correctIndex: 0, explanation: "Die Analyse nennt einen möglichen Angebotsrückgang unter der Preisobergrenze.",
+    evidence: "Einige Betriebe reduzieren unter der Preisobergrenze ihr Angebot.",
+  }],
+};
+
+test("learning cards require a confirmed decision, never a preview or discarded proposal", async () => {
+  const world = snapshot(); mockGoogle();
+  const analysis = await preview(world);
+  let cardCalls = 0;
+  mockGoogle({ cards: [validLearningCard] }, () => { cardCalls++; });
+  const before = await learningCards(request("learning-cards", { snapshot: world, analysis, existing: [] }));
+  assert.equal(before.status, 400);
+  assert.equal(cardCalls, 0);
+  const confirmed = await commit(request("commit", { snapshot: world, analysis }));
+  const next = (await confirmed.json()).snapshot as SignedWorld;
+  const result = await learningCards(request("learning-cards", { snapshot: next, analysis, existing: [] }));
+  assert.equal(result.status, 200);
+  const cards = (await result.json()).cards;
+  assert.equal(cards.length, 1);
+  assert.equal(cards[0].origin.proposalId, analysis.proposal.id);
+  assert.equal(cards[0].generated, true);
+  assert.equal(cardCalls, 1);
+});
+
+test("an invalid or opinion-based card does not undo a confirmed decision", async () => {
+  const world = snapshot(); mockGoogle();
+  const analysis = await preview(world);
+  const confirmed = await commit(request("commit", { snapshot: world, analysis }));
+  assert.equal(confirmed.status, 200);
+  const next = (await confirmed.json()).snapshot as SignedWorld;
+  mockGoogle({ cards: [{ ...validLearningCard, questions: [{ ...validLearningCard.questions[0], question: "Findest du die Preisgrenze politisch am besten?" }] }] });
+  const result = await learningCards(request("learning-cards", { snapshot: next, analysis, existing: [] }));
+  assert.equal(result.status, 502);
+  assert.equal(verifyWorld(next).revision, 1);
+});
+
+test("migrated curated progress and generated card reviews survive a new country", async () => {
+  const old = { conceptId: "rule-of-law", stage: 1, nextReviewAt: "2026-11-01T10:00:00.000Z",
+    reviewAfterRevision: 3, attempts: 2, lastCorrect: true };
+  const migrated = readLearningCollection(null, [old], 2);
+  assert.equal(migrated.progress[0].attempts, 2);
+  assert.equal(migrated.progress[0].nextReviewAt, old.nextReviewAt);
+  const world = snapshot(); mockGoogle();
+  const analysis = await preview(world);
+  const committed = await commit(request("commit", { snapshot: world, analysis }));
+  const next = (await committed.json()).snapshot as SignedWorld;
+  let collection = confirmLearningDecision(migrated, next, analysis);
+  assert.equal(collection.decisionCount, 3);
+  const generated = { id: `ai:${analysis.proposal.id}:0`, generated: true as const,
+    title: validLearningCard.title, explanation: `${validLearningCard.decisionConnection} ${validLearningCard.learningPoint}`,
+    learningPoint: validLearningCard.learningPoint, dedupeKey: validLearningCard.dedupeKey,
+    questions: validLearningCard.questions, createdAt: now.toISOString(),
+    origin: { worldId: world.state.id, countryName: "Testland", proposalId: analysis.proposal.id,
+      decisionTitle: analysis.proposal.analysis.title, decision: analysis.proposal.decision, round: 1 } };
+  collection = acceptGeneratedCards(collection, analysis.proposal.id, [generated], now);
+  assert.equal(collection.cards.length, 1);
+  assert.equal(collection.progress.length, 2);
+  assert.equal(dueCards(collection.progress, 3, now, collection.cards, true).some(item => item.conceptId === generated.id), false);
+  const anotherCountry = signWorld(createWorld({ ...setup, countryName: "Neuland" }));
+  assert.notEqual(anotherCountry.state.id, world.state.id);
+  const restored = readLearningCollection(JSON.parse(JSON.stringify(collection)), [], anotherCountry.state.revision);
+  assert.equal(restored.cards[0].origin.countryName, "Testland");
+  assert.equal(restored.progress[0].attempts, 2);
+  assert.equal(dueCards(restored.progress, 4, now, restored.cards, true).some(item => item.conceptId === generated.id), true);
+  const reviewed = reviewConcept(restored.progress, generated.id, true, 4, now, restored.cards);
+  assert.equal(reviewed.find(item => item.conceptId === generated.id)?.stage, 1);
+});
+
+test("near duplicate cards and collection cap preserve earlier cards and progress", () => {
+  const first = { id: "ai:original:0", generated: true as const, title: validLearningCard.title,
+    explanation: `${validLearningCard.decisionConnection} ${validLearningCard.learningPoint}`,
+    learningPoint: validLearningCard.learningPoint, dedupeKey: validLearningCard.dedupeKey,
+    questions: validLearningCard.questions, createdAt: now.toISOString(),
+    origin: { worldId: "world", countryName: "Testland", proposalId: "original",
+      decisionTitle: "Dönerpreis auf 2 € begrenzen", decision: "Preisgrenze", round: 1 } };
+  const duplicate: DynamicLearningCard = { ...first, id: "ai:another:0", title: "Preisgrenzen und Angebot",
+    origin: { ...first.origin, proposalId: "another" } };
+  const queued = { ...emptyCollection(), jobs: [{ proposalId: "another", snapshot: {}, analysis: {}, status: "pending" as const }],
+    cards: [first], progress: [{ conceptId: first.id, stage: 2, nextReviewAt: now.toISOString(),
+      reviewAfterRevision: 99, reviewAfterDecision: 99, attempts: 4, lastCorrect: true }] };
+  const after = acceptGeneratedCards(queued, "another", [duplicate], now);
+  assert.equal(after.cards.length, 1);
+  assert.equal(after.progress[0].attempts, 4);
+  assert.equal(after.skippedGenerations, 1);
+  const full = { ...after, cards: Array.from({ length: MAX_DYNAMIC_CARDS }, (_, index) => ({ ...first,
+    id: `ai:old:${index}`, origin: { ...first.origin, proposalId: `old-${index}` } })) };
+  const decision = { proposal: { id: "latest", kind: "decision" }, signature: "" } as SignedWorldProposal;
+  const capped = confirmLearningDecision(full, {} as SignedWorld, decision);
+  assert.equal(capped.cards.length, MAX_DYNAMIC_CARDS);
+  assert.deepEqual(capped.progress, full.progress);
+  assert.equal(capped.skippedGenerations, 2);
 });
 
 async function voice(world: SignedWorld, analysis: SignedWorldProposal, characterId: string, previous?: SignedCharacterVoice) {

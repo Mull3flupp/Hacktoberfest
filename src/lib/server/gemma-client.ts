@@ -69,7 +69,7 @@ export async function requestJsonModel<T>({ system, task, data, schema, maxToken
       method: "POST",
       headers: google
         ? { "x-goog-api-key": config.apiKey, "Content-Type": "application/json" }
-        : { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json", "X-OpenRouter-Title": "Wenn ich König von Deutschland wäre" },
+        : { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json", "X-OpenRouter-Title": "Polyvox" },
       body: JSON.stringify(body), signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs), cache: "no-store",
     });
     const raw = await response.text();

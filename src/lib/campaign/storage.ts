@@ -3,7 +3,8 @@ import type { CampaignState } from "./types";
 import type { LearningProgress } from "../game/types";
 import { parseSession } from "../storage";
 
-export const CAMPAIGN_STORAGE_KEY = "koenig-campaign-v2";
+export const CAMPAIGN_STORAGE_KEY = "polyvox-campaign-v2";
+export const PREVIOUS_CAMPAIGN_STORAGE_KEY = "koenig-campaign-v2";
 export interface CampaignSession { state: CampaignState | null; learning: LearningProgress[] }
 
 export function parseCampaignSession(raw: string): CampaignSession {

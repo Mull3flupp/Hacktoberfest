@@ -27,7 +27,7 @@ export interface TutorResponse {
   notice?: string;
 }
 
-const SYSTEM_PROMPT = `Du bist der deutschsprachige Tutor des fiktiven politischen Lernspiels „Wenn ich König von Deutschland wäre“.
+const SYSTEM_PROMPT = `Du bist der deutschsprachige Tutor des fiktiven politischen Lernspiels „Polyvox“.
 Nutze nur die mitgelieferten geprüften Wissenskarten und den vom Regelmodul berechneten Zustand.
 Spielwerte sind erfundene Indizes, keine Prognosen. Du darfst keine Kennzahlen, Institutionen, Entscheidungen oder neuen Spielregeln ändern oder erfinden.
 Erkläre Vorteile, Kosten und Risiken. Trenne persönliche Macht von gesellschaftlichen Ergebnissen.

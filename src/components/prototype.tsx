@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { concepts, createGame, getConcept, getHistoryOutcomes, getScene, getSuccession, restoreGame } from "@/lib/game/engine";
 import { dueCards, rememberConcept, reviewConcept } from "@/lib/game/learning";
 import type { ConceptCard, ConceptId, GameState, LearningProgress, Narrative, TurnOutcome, TurnResponse } from "@/lib/game/types";
-import { parseSession, postJson, STORAGE_KEY } from "@/lib/storage";
+import { parseSession, postJson, PREVIOUS_STORAGE_KEY, STORAGE_KEY } from "@/lib/storage";
+import { readBrandedStorage } from "@/lib/branded-storage";
 import { VoicePanel, type VoiceBridge } from "./voice-panel";
 
 type View = "start" | "game" | "learn" | "knowledge";
@@ -47,7 +48,7 @@ export function Prototype() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = readBrandedStorage(STORAGE_KEY, PREVIOUS_STORAGE_KEY);
       if (raw) {
         const session = parseSession(raw);
         gameRef.current = session.game;
@@ -180,7 +181,7 @@ export function Prototype() {
   return <main>
     <header>
       <span className="eyebrow">Politik ausprobieren · Prototyp</span>
-      <h1>Wenn ich König von Deutschland wäre</h1>
+      <h1>Polyvox</h1>
       <p className="muted">Ein fiktives Land. Drei Entscheidungen. Und die Frage, was von deiner Macht bleiben sollte.</p>
     </header>
     <nav className="row" aria-label="Bereiche">
@@ -217,7 +218,7 @@ export function Prototype() {
         <ul>{visibleNarrative.actorReactions.map((text, index) => <li key={index}>{text}</li>)}</ul>
         <p className="notice"><strong>Zum Nachdenken: </strong>{visibleNarrative.reflection}</p>
         <div className="stack">{lastOutcome.conceptIds.map(id => <ConceptActions key={id} card={getConcept(id)!} saved={learning.some(card => card.conceptId === id)} onRemember={() => remember(id)} onExplain={() => void askTutor(`Erkläre mir ${getConcept(id)?.title} anhand meiner letzten Entscheidung.`, id).catch(() => {})} disabled={tutoring} />)}</div>
-        <div className="row card-footer"><button className="primary" onClick={() => { setFeedback(false); setNarrative(null); }}>{scene ? "Zur nächsten Entscheidung" : "Zum Nachfolgetest"}</button>{due.length > 0 && <button onClick={() => openQuiz(due[0].conceptId)}>Lernkarte wiederholen ({due.length})</button>}</div>
+        <div className="row card-footer"><button className="primary" onClick={() => { setFeedback(false); setNarrative(null); }}>{scene ? "Zur nächsten Entscheidung" : "Zum Nachfolgetest"}</button>{due.length > 0 && <button onClick={() => openQuiz(due[0].conceptId as ConceptId)}>Lernkarte wiederholen ({due.length})</button>}</div>
       </section> : scene ? <section className="panel">
         <p className="eyebrow">Entscheidung {revision + 1} von 3</p>
         <h2>{scene.title}</h2><p>{scene.intro}</p>
@@ -228,7 +229,7 @@ export function Prototype() {
         <button className="primary card-footer" onClick={confirmDecision} disabled={!selected || busy}>{busy ? "Entscheidung wird ausgewertet …" : "Entscheidung bestätigen"}</button>
       </section> : <Results game={game} onRemember={() => remember("peaceful-transfer")} saved={learning.some(card => card.conceptId === "peaceful-transfer")} onEvaluate={() => void askTutor("Werte meinen Spielweg und den Nachfolgetest kritisch aus: Welche Vorteile, Kosten und Risiken haben meine Institutionen?").catch(() => {})} evaluating={tutoring} />}
 
-      {due.length > 0 && !feedback && <div className="notice row space-between"><span>Eine gemerkte Lernkarte ist wieder fällig.</span><button className="small" onClick={() => openQuiz(due[0].conceptId)}>Jetzt wiederholen</button></div>}
+      {due.length > 0 && !feedback && <div className="notice row space-between"><span>Eine gemerkte Lernkarte ist wieder fällig.</span><button className="small" onClick={() => openQuiz(due[0].conceptId as ConceptId)}>Jetzt wiederholen</button></div>}
       <section className="panel">
         <div className="row space-between"><h2>Frag nach</h2><span className="badge">{health?.gemma.configured ? "Gemma eingerichtet" : "Wissenskarten-Modus"}</span></div>
         <p className="muted">Fragen verändern keine Spielwerte. {health?.gemma.configured ? "Gemma erklärt anhand der hinterlegten Begriffe." : "Ohne Gemma-Zugang erhältst du passende hinterlegte Erklärungen."}</p>

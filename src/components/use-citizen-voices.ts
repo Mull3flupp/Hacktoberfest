@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { readBrandedStorage } from "@/lib/branded-storage";
 import { characters, type CharacterId } from "@/lib/simulation/characters";
 import { loadCitizenVoices, voiceMatches, type CitizenContext } from "@/lib/simulation/citizen-loading";
 import { validateWorld, worldProposalSchema } from "@/lib/simulation/state";
 import type { SignedWorld, SignedWorldProposal } from "@/lib/simulation/types";
 import { signedCharacterVoiceSchema, type SignedCharacterVoice } from "@/lib/simulation/voices";
 
-const SAVE_KEY = "koenig-citizen-voices-v1";
+const SAVE_KEY = "polyvox-citizen-voices-v1";
+const PREVIOUS_SAVE_KEY = "koenig-citizen-voices-v1";
 interface VoiceJob {
   context: CitizenContext;
   voices: SignedCharacterVoice[];
@@ -63,7 +65,7 @@ export function useCitizenVoices(snapshot: SignedWorld | null, proposal: SignedW
     if (!snapshot || jobRef.current?.context.snapshot.state.id === worldId) return;
     cancel(); update(null); confirmedRef.current = null; setConfirmed(null);
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      const raw = readBrandedStorage(SAVE_KEY, PREVIOUS_SAVE_KEY);
       if (!raw || raw.length > 1_000_000) return;
       const saved = JSON.parse(raw) as VoiceJob;
       if (!saved.context || !matchesWorld(saved, snapshot)) return;

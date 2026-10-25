@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import { goals } from "@/lib/campaign/engine";
+import { readBrandedStorage } from "@/lib/branded-storage";
 import type { CampaignSetup, GoalId, Government } from "@/lib/campaign/types";
 import { concepts, getConcept } from "@/lib/game/engine";
 import { dueCards, rememberConcept } from "@/lib/game/learning";
-import type { ConceptId, LearningProgress } from "@/lib/game/types";
+import { acceptGeneratedCards, confirmLearningDecision, emptyCollection, failCardJob, LEARNING_KEY, PREVIOUS_LEARNING_KEY, readLearningCollection, retryCardJob, type LearningCollection } from "@/lib/game/learning-collection";
+import type { ConceptId } from "@/lib/game/types";
 import { validateWorld, worldProposalSchema } from "@/lib/simulation/state";
 import type { SignedWorld, SignedWorldProposal, WorldCommit, WorldState } from "@/lib/simulation/types";
 import { LearningPanel } from "./learning-panel";
@@ -25,7 +27,8 @@ type Screen = "setup" | "desk" | "balance" | "library" | "chronicle";
 type Busy = "start" | "analyze" | "commit" | null;
 type TutorAnswer = { answer: string; source: "gemma" | "curated"; conceptIds: ConceptId[]; notice?: string };
 type Message = { role: "user" | "assistant"; text: string; source?: string };
-const SAVE_KEY = "koenig-open-world-v3";
+const SAVE_KEY = "polyvox-open-world-v3";
+const PREVIOUS_SAVE_KEY = "koenig-open-world-v3";
 const initialSetup: CampaignSetup = { countryName: "Neuland", vision: "Ein Land, in dem man gut leben kann – und in dem auch die Regierung an ihre Regeln gebunden ist.", goals: ["housing", "rights"], government: "parliament" };
 const groupLabels = { people: "Bevölkerung", business: "Wirtschaft & Betriebe", civil: "Zivilgesellschaft" };
 const examples = ["Ich will den Dönerpreis auf 2 € begrenzen.", "Ich möchte den öffentlichen Nahverkehr kostenlos machen.", "Ich führe eine Vier-Tage-Woche ein."];
@@ -41,14 +44,6 @@ function readSnapshot(value: unknown): SignedWorld {
   validateWorld(value.state);
   // Validate the shape without rewriting any part of the server-signed payload.
   return value as SignedWorld;
-}
-
-function readLearning(value: unknown): LearningProgress[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is LearningProgress => !!item && typeof item === "object" && !!getConcept(item.conceptId)
-    && Number.isInteger(item.stage) && item.stage >= 0 && item.stage <= 3 && Number.isInteger(item.attempts) && item.attempts >= 0
-    && Number.isInteger(item.reviewAfterRevision) && item.reviewAfterRevision >= 0
-    && typeof item.nextReviewAt === "string" && Number.isFinite(Date.parse(item.nextReviewAt)) && (item.lastCorrect === null || typeof item.lastCorrect === "boolean"));
 }
 
 async function requestJson<T>(path: string, body: unknown): Promise<T> {
@@ -86,7 +81,10 @@ export function OpenWorld() {
   const [error, setError] = useState("");
   const [storageError, setStorageError] = useState("");
   const [receipt, setReceipt] = useState<{ title: string; consequences: string[] } | null>(null);
-  const [learning, setLearning] = useState<LearningProgress[]>([]);
+  const [learning, setLearning] = useState<LearningCollection>(emptyCollection);
+  const learningRef = useRef<LearningCollection>(learning);
+  const learningLoaded = useRef(false);
+  const cardJobRunning = useRef<string | null>(null);
   const [learningFocus, setLearningFocus] = useState<ConceptId | undefined>();
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -101,16 +99,27 @@ export function OpenWorld() {
   const analysisPanel = useRef<HTMLElement>(null);
 
   useEffect(() => {
+    let legacyLearning: unknown;
+    let restoredRevision = 0;
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      const raw = readBrandedStorage(SAVE_KEY, PREVIOUS_SAVE_KEY);
       if (raw) {
         const saved = JSON.parse(raw);
         const restored = saved.snapshot === null ? null : readSnapshot(saved.snapshot);
-        snapshotRef.current = restored; setSnapshot(restored); setLearning(readLearning(saved.learning));
+        snapshotRef.current = restored; setSnapshot(restored);
+        legacyLearning = saved.learning;
+        restoredRevision = restored?.state.revision ?? 0;
         if (typeof saved.draft === "string") setDraft(saved.draft.slice(0, 1500));
         if (restored) { setSetup(restored.state.setup); setScreen("desk"); }
       }
     } catch { setCanPersist(false); setStorageError("Der gespeicherte Stand dieser Simulation ist nicht lesbar. Du kannst ein neues Land gründen; ältere Prototyp-Spielstände bleiben erhalten."); }
+    try {
+      const raw = readBrandedStorage(LEARNING_KEY, PREVIOUS_LEARNING_KEY);
+      const collection = readLearningCollection(raw ? JSON.parse(raw) : null, legacyLearning, restoredRevision);
+      learningRef.current = collection; setLearning(collection);
+      localStorage.setItem(LEARNING_KEY, JSON.stringify(collection));
+      learningLoaded.current = true;
+    } catch { setStorageError("Deine Lernkartensammlung konnte nicht gelesen oder gespeichert werden. Der vorhandene Speichereintrag bleibt erhalten."); }
     setReady(true);
     fetch("/api/health").then(response => response.ok ? response.json() : null).then(value => { setVoiceConfigured(Boolean(value?.voice?.configured)); setAudioConfigured(Boolean(value?.audio?.configured)); }).catch(() => {});
     setMutedState(isMuted());
@@ -123,10 +132,40 @@ export function OpenWorld() {
   }, []);
 
   useEffect(() => {
-    if (!ready || !canPersist) return;
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ snapshot, learning, draft })); }
+    if (!ready || !canPersist || !learningLoaded.current) return;
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ snapshot, draft })); }
     catch { setStorageError("Dein Browser kann gerade nicht speichern. Lass diese Seite geöffnet, um weiterzuspielen."); }
-  }, [snapshot, learning, draft, ready, canPersist]);
+  }, [snapshot, draft, ready, canPersist]);
+
+  function updateLearning(next: LearningCollection) {
+    learningRef.current = next; setLearning(next);
+    if (!learningLoaded.current) return;
+    try { localStorage.setItem(LEARNING_KEY, JSON.stringify(next)); }
+    catch { setStorageError("Deine Lernkartensammlung konnte nicht gespeichert werden. Lass diese Seite geöffnet."); }
+  }
+
+  useEffect(() => {
+    if (!ready) return;
+    const job = learning.jobs.find(item => item.status === "pending");
+    if (!job || cardJobRunning.current) return;
+    cardJobRunning.current = job.proposalId;
+    void (async () => {
+      try {
+        const result = await requestJson<{ cards: unknown }>("/api/simulation/learning-cards", {
+          snapshot: job.snapshot, analysis: job.analysis,
+          existing: learningRef.current.cards.map(card => ({ title: card.title, learningPoint: card.learningPoint, dedupeKey: card.dedupeKey })),
+        });
+        const next = acceptGeneratedCards(learningRef.current, job.proposalId, result.cards);
+        cardJobRunning.current = null;
+        updateLearning(next);
+      } catch (cause) {
+        const next = failCardJob(learningRef.current, job.proposalId,
+          cause instanceof Error ? cause.message : "Keine gültige Lernkarte erhalten.");
+        cardJobRunning.current = null;
+        updateLearning(next);
+      }
+    })();
+  }, [ready, learning]);
 
   useEffect(() => {
     if (!ready) return;
@@ -145,7 +184,7 @@ export function OpenWorld() {
   }, [proposal, screen]);
 
   const state = snapshot?.state;
-  const due = dueCards(learning, state?.revision ?? 0, new Date(now));
+  const due = dueCards(learning.progress, learning.decisionCount, new Date(now), learning.cards, true);
   const expired = !!proposal && proposal.proposal.expiresAt <= now;
   const promises = state ? promiseRows(state) : [];
 
@@ -169,7 +208,6 @@ export function OpenWorld() {
       if (epoch.current !== requestEpoch) return;
       snapshotRef.current = next; setSnapshot(next); setSetup(next.state.setup); setScreen("desk");
       updateProposal(null); setDraft(""); setReceipt(null); setMessages([]); setQuestion(""); setCanPersist(true); setStorageError("");
-      setLearning(previous => previous.map(card => ({ ...card, reviewAfterRevision: card.lastCorrect === true ? card.reviewAfterRevision : 1 })));
     } catch (cause) { if (epoch.current === requestEpoch) setError(cause instanceof Error ? cause.message : "Das Land konnte nicht gegründet werden."); }
     finally { busyRef.current = false; setBusy(null); }
   }
@@ -214,6 +252,7 @@ export function OpenWorld() {
       const next = readSnapshot(response.snapshot);
       if (next.state.id !== current.state.id || next.state.revision !== current.state.revision + 1) throw new Error("Die Antwort passt nicht zum aktuellen Spielstand. Bitte die Seite neu laden, bevor du erneut bestätigst.");
       snapshotRef.current = next; setSnapshot(next); updateProposal(null); setNow(Date.now());
+      updateLearning(confirmLearningDecision(learningRef.current, next, pending));
       setReceipt({ title: pending.proposal.analysis.title, consequences: response.appliedConsequences });
       playSoundEffect("gavel");
       if (pending.proposal.kind === "decision") setDraft("");
@@ -225,7 +264,7 @@ export function OpenWorld() {
   function remember(id: string) {
     const card = getConcept(id);
     if (!card) return "Dieser Begriff ist nicht in der Lernkartei. Verwende eine bekannte Begriffs-ID.";
-    setLearning(previous => rememberConcept(previous, card.id, snapshotRef.current?.state.revision ?? 0));
+    updateLearning({ ...learningRef.current, progress: rememberConcept(learningRef.current.progress, card.id, learningRef.current.decisionCount) });
     playSoundEffect("learning");
     return `${card.title} wurde für später gemerkt.`;
   }
@@ -272,13 +311,13 @@ export function OpenWorld() {
   if (!ready) return <main className="pixel-shell" aria-busy="true"><PixelCard title="Dein Land wird geladen …"><div className="grid gap-3 sm:grid-cols-3" aria-hidden="true"><div className="h-24 bg-[var(--px-gray)]" /><div className="h-24 bg-[var(--px-gray)]" /><div className="h-24 bg-[var(--px-gray)]" /></div></PixelCard></main>;
   if (newLandIntro) return <IntroSlides onDone={() => { setNewLandIntro(false); setSetupStep(1); setScreen("setup"); setError(""); }} />;
 
-  const rememberedIds = learning.map(card => card.conceptId);
+  const rememberedIds = learning.progress.map(card => card.conceptId).filter((id): id is ConceptId => !!getConcept(id));
   const beginWorld = () => { if (snapshot) setNewWorldOpen(true); else void start(); };
   const navItems = [["desk", "Regieren"], ["chronicle", "Chronik"], ["balance", "Bilanz"], ["library", `Lernkarten${due.length ? ` (${due.length})` : ""}`]] as const;
 
   return <main className="pixel-shell">
     <header className="flex flex-wrap items-center justify-between gap-4 border-b-[length:var(--px-border)] border-[var(--px-ink)] pb-5">
-      <div className="flex items-center gap-3"><Gruender size={40} bob={false} /><h1 className="font-pixel text-balance text-xl leading-tight sm:text-2xl">Wenn ich König von Deutschland wäre</h1></div>
+      <div className="flex items-center gap-3"><Gruender size={40} bob={false} /><h1 className="font-pixel text-balance text-xl leading-tight sm:text-2xl">Polyvox</h1></div>
       <div className="flex flex-wrap gap-2">{audioConfigured && <PixelButton size="sm" variant="secondary" aria-pressed={!muted} onClick={() => setMuted(!muted)}>{muted ? "Ton aus" : "Ton an"}</PixelButton>}{state && <PixelButton size="sm" variant="secondary" disabled={!!busy} onClick={() => setNewLandIntro(true)}>Neues Land</PixelButton>}</div>
     </header>
     <nav className="my-5 flex flex-wrap gap-2 border-0 p-0" aria-label="Spielbereiche">{navItems.filter(([id]) => state || id === "library").map(([id, label]) => <PixelButton key={id} size="sm" variant={screen === id ? "info" : "secondary"} aria-current={screen === id ? "page" : undefined} disabled={!!busy} onClick={() => { if (id === "library") setLearningFocus(undefined); setScreen(id); }}>{label}</PixelButton>)}</nav>
@@ -344,7 +383,11 @@ export function OpenWorld() {
       </PixelCard><PixelButton onClick={() => setScreen("desk")}>Weiterregieren →</PixelButton></section>}
 
     {screen === "chronicle" && state && <section className="space-y-5"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-pixel text-3xl">Chronik</h2><PixelButton variant="secondary" size="sm" onClick={() => setScreen("desk")}>Weiterregieren →</PixelButton></div>{state.history.length ? [...state.history].reverse().map(turn => <PixelCard key={turn.id} eyebrow={roundLabel(turn.round)} title={turn.title}><blockquote className="my-3 border-l-4 border-[var(--px-blue)] pl-3 text-sm">{turn.decision}</blockquote><p className="mb-4 text-sm leading-relaxed">{turn.summary}</p><EffectChips effects={{ metrics: Object.fromEntries(Object.entries(turn.metricsAfter).map(([key, value]) => [key, value - turn.metricsBefore[key as keyof typeof turn.metricsBefore]])), groups: {} }} /></PixelCard>) : <PixelCard tone="blue"><p>Noch keine Beschlüsse.</p><PixelButton className="mt-4" variant="info" onClick={() => setScreen("desk")}>Erste Entscheidung treffen →</PixelButton></PixelCard>}<PixelCard><details className="pixel-details"><summary>Geltende Regeln & Weltwissen</summary><ul className="pixel-list mt-3 text-sm">{state.facts.map((fact, index) => <li key={index}>{fact}</li>)}</ul></details></PixelCard></section>}
-    {screen === "library" && <LearningPanel pixel progress={learning} revision={state?.revision ?? 0} onChange={setLearning} onClose={() => setScreen(state ? "desk" : "setup")} initialConceptId={learningFocus} onAskTutor={state ? askTutor : undefined} />}
+    {screen === "library" && <LearningPanel pixel progress={learning.progress} revision={learning.decisionCount} dynamicCards={learning.cards}
+      jobs={learning.jobs.map(job => ({ proposalId: job.proposalId, status: job.status, error: job.error }))}
+      skippedGenerations={learning.skippedGenerations} onRetryJob={id => updateLearning(retryCardJob(learningRef.current, id))}
+      onChange={progress => updateLearning({ ...learningRef.current, progress })} onClose={() => setScreen(state ? "desk" : "setup")}
+      initialConceptId={learningFocus} onAskTutor={state ? askTutor : undefined} />}
 
     <FeedbackSheet open={!!receipt && screen === "desk"} tone="consequence" title={receipt?.title ?? "Beschluss bestätigt"} actionLabel="Weiterregieren" onAction={() => setReceipt(null)}>{receipt && <><p>Der Beschluss gilt jetzt in {state?.setup.countryName}.</p>{receipt.consequences.map((text, index) => <p key={index} className="mt-2"><b>Jetzt eingetreten:</b> {text}</p>)}</>}</FeedbackSheet>
     <AlertDialog.Root open={newWorldOpen} onOpenChange={setNewWorldOpen}><AlertDialog.Overlay className="fixed inset-0 z-40 bg-[var(--px-ink)]/60" /><AlertDialog.Content className="pixel-alert fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 border-[length:var(--px-border)] border-[var(--px-ink)] bg-[var(--px-paper)] p-6 shadow-[var(--px-shadow)_var(--px-shadow)_0_var(--px-ink)]"><AlertDialog.Title className="font-pixel text-2xl">Ein neues Land gründen?</AlertDialog.Title><AlertDialog.Description className="my-4 text-sm leading-relaxed">Dein bisheriges Land „{state?.setup.countryName}“ und seine Chronik werden ersetzt. Deine Lernkarten bleiben erhalten.</AlertDialog.Description><div className="flex flex-wrap gap-3"><AlertDialog.Cancel asChild><PixelButton variant="secondary">Beim bisherigen Land bleiben</PixelButton></AlertDialog.Cancel><AlertDialog.Action asChild><PixelButton variant="info" onClick={() => void start()}>Neues Land gründen</PixelButton></AlertDialog.Action></div></AlertDialog.Content></AlertDialog.Root>

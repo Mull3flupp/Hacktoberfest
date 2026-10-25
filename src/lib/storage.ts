@@ -1,7 +1,8 @@
 import { getConcept, restoreGame } from "./game/engine";
 import type { GameState, LearningProgress } from "./game/types";
 
-export const STORAGE_KEY = "koenig-prototype-v1";
+export const STORAGE_KEY = "polyvox-prototype-v1";
+export const PREVIOUS_STORAGE_KEY = "koenig-prototype-v1";
 export interface SavedSession { game: GameState | null; learning: LearningProgress[]; showFeedback: boolean }
 
 export function parseSession(raw: string): SavedSession {

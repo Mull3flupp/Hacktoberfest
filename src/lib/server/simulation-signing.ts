@@ -69,14 +69,30 @@ export function signProposal(input: WorldProposal): SignedWorldProposal {
 }
 
 export function verifyProposal(input: unknown, inputState: WorldState, now = Date.now()): WorldProposal {
+  const proposal = verifySignedProposal(input);
+  if (!Number.isSafeInteger(now) || now < 0 || proposal.createdAt > now || proposal.expiresAt <= now) throw new Error("Diese Analyse ist abgelaufen oder noch nicht gültig. Bitte erneut analysieren lassen.");
+  const state = validateWorld(inputState);
+  if (proposal.worldId !== state.id || proposal.baseRevision !== state.revision || proposal.baseStateHash !== worldFingerprint(state)) throw new Error("Diese Analyse gehört zu einem anderen oder veralteten Spielstand. Bitte die aktuelle Revision analysieren lassen.");
+  return proposal;
+}
+
+/** Authenticates a proposal without its preview deadline, for an already committed turn. */
+export function verifySignedProposal(input: unknown): WorldProposal {
   const envelope = signedProposalSchema.safeParse(input);
   if (!envelope.success) throw new Error("Die signierte Analyse ist ungültig.");
   const parsed = worldProposalSchema.safeParse(envelope.data.proposal);
   if (!parsed.success) throw new Error("Die Analyse ist ungültig oder ihre Gültigkeitsdauer überschreitet zehn Minuten.");
   const proposal = parsed.data;
   checkSignature(envelope.data.signature, signature("proposal", proposal));
-  if (!Number.isSafeInteger(now) || now < 0 || proposal.createdAt > now || proposal.expiresAt <= now) throw new Error("Diese Analyse ist abgelaufen oder noch nicht gültig. Bitte erneut analysieren lassen.");
+  return proposal;
+}
+
+export function verifyCommittedProposal(input: unknown, inputState: WorldState): WorldProposal {
+  const proposal = verifySignedProposal(input);
   const state = validateWorld(inputState);
-  if (proposal.worldId !== state.id || proposal.baseRevision !== state.revision || proposal.baseStateHash !== worldFingerprint(state)) throw new Error("Diese Analyse gehört zu einem anderen oder veralteten Spielstand. Bitte die aktuelle Revision analysieren lassen.");
+  const turn = state.history.find(item => item.id === proposal.id);
+  if (proposal.kind !== "decision" || proposal.worldId !== state.id || !turn
+    || turn.decision !== proposal.decision || turn.title !== proposal.analysis.title
+    || turn.round !== proposal.baseRevision + 1) throw new Error("Der Beschluss wurde in diesem Spielstand nicht bestätigt.");
   return proposal;
 }

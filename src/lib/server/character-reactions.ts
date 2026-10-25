@@ -21,7 +21,7 @@ async function retryVoice<T>(request: () => Promise<T>, signal?: AbortSignal): P
 
 /** The PR's original persona is used verbatim, separately for every citizen. */
 export function characterSystemPrompt(character: Character) {
-  return `Du spielst ausschließlich die fiktive Bürgerfigur ${character.name} (${character.role}) im politischen Lernspiel „Wenn ich König von Deutschland wäre“.
+  return `Du spielst ausschließlich die fiktive Bürgerfigur ${character.name} (${character.role}) im politischen Lernspiel „Polyvox“.
 PERSONA_ID: ${character.id}
 Deine unveränderte Charakterbeschreibung:
 ${character.persona}

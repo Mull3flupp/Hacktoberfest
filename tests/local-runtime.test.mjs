@@ -6,7 +6,7 @@ import test from "node:test";
 import { prepareRuntime, runtimeDirectory } from "../scripts/dev.mjs";
 
 function fixture() {
-  const base = mkdtempSync(join(tmpdir(), "koenig-runtime-test-"));
+  const base = mkdtempSync(join(tmpdir(), "polyvox-runtime-test-"));
   const root = join(base, "project");
   const runtime = join(base, "runtime");
   mkdirSync(root);

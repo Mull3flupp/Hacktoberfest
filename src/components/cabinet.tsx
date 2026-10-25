@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { createCampaign, getBriefing, getDebrief, getInbox, getPromises, getRoundLabel, goals, restoreCampaign, TOTAL_ROUNDS } from "@/lib/campaign/engine";
 import type { CampaignCommand, CampaignEffects, CampaignReport, CampaignResult, CampaignSetup, CampaignState, GoalId, Government } from "@/lib/campaign/types";
-import { CAMPAIGN_STORAGE_KEY, parseCampaignSession } from "@/lib/campaign/storage";
+import { CAMPAIGN_STORAGE_KEY, PREVIOUS_CAMPAIGN_STORAGE_KEY, parseCampaignSession } from "@/lib/campaign/storage";
+import { readBrandedStorage } from "@/lib/branded-storage";
 import { concepts, getConcept } from "@/lib/game/engine";
 import { dueCards, rememberConcept } from "@/lib/game/learning";
 import type { ConceptId, LearningProgress } from "@/lib/game/types";
-import { parseSession, postJson, STORAGE_KEY } from "@/lib/storage";
+import { parseSession, postJson, PREVIOUS_STORAGE_KEY, STORAGE_KEY } from "@/lib/storage";
 import { LearningPanel } from "./learning-panel";
 import { VoicePanel, type VoiceBridge } from "./voice-panel";
 
@@ -49,13 +50,13 @@ export function Cabinet() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(CAMPAIGN_STORAGE_KEY);
+      const raw = readBrandedStorage(CAMPAIGN_STORAGE_KEY, PREVIOUS_CAMPAIGN_STORAGE_KEY);
       if (raw) {
         const saved = parseCampaignSession(raw);
         stateRef.current = saved.state; setState(saved.state); setLearning(saved.learning);
         if (saved.state) { setSetup(saved.state.setup); setScreen("desk"); }
       } else {
-        const previous = localStorage.getItem(STORAGE_KEY);
+        const previous = readBrandedStorage(STORAGE_KEY, PREVIOUS_STORAGE_KEY);
         if (previous) setLearning(parseSession(previous).learning.map(card => ({ ...card, reviewAfterRevision: card.lastCorrect === true ? card.reviewAfterRevision : 1 })));
       }
     } catch { setStorageError("Der bisherige Spielstand ist nicht lesbar. Deine neue Amtszeit kannst du trotzdem beginnen."); }
@@ -174,7 +175,7 @@ export function Cabinet() {
 
   return <main className="cabinet-app">
     <header className="cabinet-header">
-      <div><span className="eyebrow">Ein politisches Gedankenexperiment</span><h1>Wenn ich König von Deutschland wäre<span className="title-dot">.</span></h1></div>
+      <div><span className="eyebrow">Ein politisches Gedankenexperiment</span><h1>Polyvox<span className="title-dot">.</span></h1></div>
       <nav className="cabinet-nav" aria-label="Spielbereiche">
         {state && <button className={screen === "desk" ? "active" : ""} onClick={() => { setScreen("desk"); setAdvanceOpen(false); }}>Kabinett</button>}
         <button className={screen === "library" ? "active" : ""} onClick={() => { setLearningFocus(undefined); setScreen("library"); }}>Notizbuch{due.length > 0 ? ` · ${due.length}` : ""}</button>
@@ -218,7 +219,7 @@ export function Cabinet() {
         <span className="eyebrow">Während du regiert hast, ist das Land nicht stehen geblieben.</span><h2>{lastReport.title}</h2><p>{lastReport.summary}</p>
         <div className="newspaper"><div className="newspaper-name">Das {state.setup.countryName}-Journal <span>Fiktive Nachrichten</span></div>{lastReport.headlines.length ? lastReport.headlines.map(news => <article key={news.id}><span className={`news-mark ${news.tone}`} /><div><h3>{news.headline}</h3><p>{news.detail}</p></div></article>) : <p>Die Auswirkungen deiner Beschlüsse prägen den nächsten Abschnitt.</p>}</div>
         <div className="advisor-quote"><span className="advisor-avatar">M</span><div><strong>Mara hat eine Frage</strong><p>{lastReport.reflection}</p></div></div>
-        <div className="row"><button className="primary" onClick={() => setScreen("desk")}>{state.ending ? "Dein Vermächtnis ansehen →" : "Zurück an den Schreibtisch →"}</button>{due.length > 0 && <button onClick={() => { setLearningFocus(due[0].conceptId); setScreen("library"); }}>Eine Notiz ist wieder fällig</button>}</div>
+        <div className="row"><button className="primary" onClick={() => setScreen("desk")}>{state.ending ? "Dein Vermächtnis ansehen →" : "Zurück an den Schreibtisch →"}</button>{due.length > 0 && <button onClick={() => { setLearningFocus(due[0].conceptId as ConceptId); setScreen("library"); }}>Eine Notiz ist wieder fällig</button>}</div>
       </section> : state.ending ? <CampaignEnding state={state} onReplay={() => { setSetup(state.setup); setScreen("setup"); }} onRemember={remember} /> : <>
         <div className="cabinet-briefing"><span className="advisor-avatar">M</span><div><div className="eyebrow">Mara Voss · Kabinettschefin</div><h2>{briefing?.title}</h2><p>{briefing?.message}</p>{briefing?.warning && <p className="briefing-warning">{briefing.warning}</p>}</div><button className="advance-button" onClick={() => setAdvanceOpen(!advanceOpen)} disabled={busy}>Quartal abschließen →</button></div>
 
