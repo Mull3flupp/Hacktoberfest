@@ -11,6 +11,7 @@ import { validateWorld, worldProposalSchema } from "@/lib/simulation/state";
 import type { SignedWorld, SignedWorldProposal, WorldCommit, WorldState } from "@/lib/simulation/types";
 import { LearningPanel } from "./learning-panel";
 import { Cutscene, buildVisitors } from "./ui/Cutscene";
+import { IntroSlides } from "./ui/IntroSlides";
 import { useCitizenVoices } from "./use-citizen-voices";
 import { pickSetting } from "./ui/officeScene";
 import { PeopleBar } from "./ui/PeopleBar";
@@ -64,9 +65,6 @@ async function requestJson<T>(path: string, body: unknown): Promise<T> {
   return value as T;
 }
 
-/** So lange nach „Folgen analysieren“, bis die Zwischensequenz im Büro aufgeht */
-const CUTSCENE_DELAY = 10_000;
-
 export function OpenWorld() {
   const [ready, setReady] = useState(false);
   const [canPersist, setCanPersist] = useState(true);
@@ -75,13 +73,11 @@ export function OpenWorld() {
   const [setup, setSetup] = useState<CampaignSetup>(initialSetup);
   const [setupStep, setSetupStep] = useState<1 | 2>(1);
   const [newWorldOpen, setNewWorldOpen] = useState(false);
+  const [newLandIntro, setNewLandIntro] = useState(false);
   const [screen, setScreen] = useState<Screen>("setup");
   const [draft, setDraft] = useState("");
   const [proposal, setProposal] = useState<SignedWorldProposal | null>(null);
-  // Zwischensequenz: startet CUTSCENE_DELAY nach dem Vorschlag; die Besucher kommen, sobald die Analyse da ist.
-  // seed würfelt Raum, Uhrzeit und Auswahl der festen Figuren für jede Szene neu aus.
-  const [cutscene, setCutscene] = useState<{ open: boolean; decision: string; proposalId: string | null; seed: number } | null>(null);
-  const cutsceneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [cutscene, setCutscene] = useState<{ decision: string; proposalId: string; seed: number } | null>(null);
   const citizenVoices = useCitizenVoices(snapshot, proposal);
   const proposalRef = useRef<SignedWorldProposal | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
@@ -123,7 +119,7 @@ export function OpenWorld() {
     window.addEventListener("pointerdown", unlock, { once: true });
     window.addEventListener("keydown", unlock, { once: true });
     const timer = setInterval(() => setNow(Date.now()), 15_000);
-    return () => { clearInterval(timer); if (cutsceneTimer.current) clearTimeout(cutsceneTimer.current); epoch.current += 1; unsubscribe(); window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); stopCurrentSpeech(); };
+    return () => { clearInterval(timer); epoch.current += 1; unsubscribe(); window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); stopCurrentSpeech(); };
   }, []);
 
   useEffect(() => {
@@ -154,7 +150,7 @@ export function OpenWorld() {
   const promises = state ? promiseRows(state) : [];
 
   function updateProposal(next: SignedWorldProposal | null) { proposalRef.current = next; setProposal(next); }
-  function stopCutscene() { if (cutsceneTimer.current) clearTimeout(cutsceneTimer.current); setCutscene(null); }
+  function stopCutscene() { setCutscene(null); }
   function updateDraft(text: string) { stopCutscene(); setDraft(text.slice(0, 1500)); updateProposal(null); setError(""); }
   function fillDraft(text: string) {
     if (busyRef.current) return;
@@ -187,11 +183,7 @@ export function OpenWorld() {
     playSoundEffect("decision");
     citizenVoices.cancel();
     const requestEpoch = epoch.current;
-    if (cutsceneTimer.current) clearTimeout(cutsceneTimer.current);
-    if (kind === "decision") {
-      setCutscene({ open: false, decision, proposalId: null, seed: Math.floor(Math.random() * 233280) });
-      cutsceneTimer.current = setTimeout(() => setCutscene(previous => previous && { ...previous, open: true }), CUTSCENE_DELAY);
-    } else setCutscene(null);
+    stopCutscene();
     try {
       const next = await requestJson<SignedWorldProposal>("/api/simulation/analyze", { snapshot: current, decision, kind });
       if (epoch.current !== requestEpoch || snapshotRef.current?.state.revision !== current.state.revision) return;
@@ -200,8 +192,9 @@ export function OpenWorld() {
       if (next.proposal.worldId !== current.state.id || next.proposal.baseRevision !== current.state.revision) throw new Error("Diese Analyse gehört nicht zu deinem aktuellen Spielstand. Bitte erneut anfordern.");
       setNow(Date.now()); updateProposal(next); setScreen("desk");
       citizenVoices.start(current, next);
-      if (kind === "decision" && buildVisitors(next.proposal.analysis).length) setCutscene(previous => previous && { ...previous, proposalId: next.proposal.id });
-      else stopCutscene();
+      if (kind === "decision" && buildVisitors(next.proposal.analysis).length) {
+        setCutscene({ decision, proposalId: next.proposal.id, seed: Math.floor(Math.random() * 233280) });
+      }
     } catch (cause) { stopCutscene(); if (epoch.current === requestEpoch) setError(cause instanceof Error ? cause.message : "Die Modellanalyse ist fehlgeschlagen. Es wurde nichts beschlossen."); }
     finally { busyRef.current = false; setBusy(null); }
   }
@@ -277,6 +270,7 @@ export function OpenWorld() {
   function openConcept(id: ConceptId) { setLearningFocus(id); setScreen("library"); }
 
   if (!ready) return <main className="pixel-shell" aria-busy="true"><PixelCard title="Dein Land wird geladen …"><div className="grid gap-3 sm:grid-cols-3" aria-hidden="true"><div className="h-24 bg-[var(--px-gray)]" /><div className="h-24 bg-[var(--px-gray)]" /><div className="h-24 bg-[var(--px-gray)]" /></div></PixelCard></main>;
+  if (newLandIntro) return <IntroSlides onDone={() => { setNewLandIntro(false); setSetupStep(1); setScreen("setup"); setError(""); }} />;
 
   const rememberedIds = learning.map(card => card.conceptId);
   const beginWorld = () => { if (snapshot) setNewWorldOpen(true); else void start(); };
@@ -285,7 +279,7 @@ export function OpenWorld() {
   return <main className="pixel-shell">
     <header className="flex flex-wrap items-center justify-between gap-4 border-b-[length:var(--px-border)] border-[var(--px-ink)] pb-5">
       <div className="flex items-center gap-3"><Gruender size={40} bob={false} /><h1 className="font-pixel text-balance text-xl leading-tight sm:text-2xl">Wenn ich König von Deutschland wäre</h1></div>
-      <div className="flex flex-wrap gap-2">{audioConfigured && <PixelButton size="sm" variant="secondary" aria-pressed={!muted} onClick={() => setMuted(!muted)}>{muted ? "Ton aus" : "Ton an"}</PixelButton>}{state && <PixelButton size="sm" variant="secondary" disabled={!!busy} onClick={() => { setSetupStep(1); setScreen("setup"); setError(""); }}>Neues Land</PixelButton>}</div>
+      <div className="flex flex-wrap gap-2">{audioConfigured && <PixelButton size="sm" variant="secondary" aria-pressed={!muted} onClick={() => setMuted(!muted)}>{muted ? "Ton aus" : "Ton an"}</PixelButton>}{state && <PixelButton size="sm" variant="secondary" disabled={!!busy} onClick={() => setNewLandIntro(true)}>Neues Land</PixelButton>}</div>
     </header>
     <nav className="my-5 flex flex-wrap gap-2 border-0 p-0" aria-label="Spielbereiche">{navItems.filter(([id]) => state || id === "library").map(([id, label]) => <PixelButton key={id} size="sm" variant={screen === id ? "info" : "secondary"} aria-current={screen === id ? "page" : undefined} disabled={!!busy} onClick={() => { if (id === "library") setLearningFocus(undefined); setScreen(id); }}>{label}</PixelButton>)}</nav>
 
@@ -341,8 +335,8 @@ export function OpenWorld() {
         {voiceConfigured && <VoicePanel pixel bridge={voiceBridge} contextVersion={`${state.id}:${state.revision}:${proposal?.proposal.id ?? "none"}`} configured={voiceConfigured} onTranscript={(source, text) => { setTutorOpen(true); setMessages(previous => [...previous, { role: source === "user" ? "user" as const : "assistant" as const, text, source: "Sprachagent" }].slice(-24)); }} />}
       </aside>}
       {/* Bürgerstimmen bleiben unten am Bildschirm sichtbar */}
-      <div className="people-dock"><PeopleBar reactions={citizenVoices.reactions ?? proposal?.proposal.analysis.characterReactions ?? state.lastAnalysis?.characterReactions} pending={citizenVoices.pending} awaiting={citizenVoices.awaiting} onRetry={citizenVoices.canRetry ? citizenVoices.retry : undefined} onVisit={proposal || state.lastAnalysis ? () => setCutscene({ open: true, decision: proposal?.proposal.decision ?? state.history.at(-1)?.decision ?? "", proposalId: proposal?.proposal.id ?? "last", seed: Math.floor(Math.random() * 233280) }) : undefined} caption={proposal ? "Bürgerstimmen · Vorschau" : state.lastAnalysis ? `Zu: ${state.lastAnalysis.title}` : "Bürgerstimmen"} /></div>
-      {cutscene?.open && (cutscene.proposalId === null ? busy === "analyze" : cutscene.proposalId === "last" ? !!state.lastAnalysis : proposal?.proposal.id === cutscene.proposalId) && <Cutscene visitors={cutscene.proposalId === "last" && state.lastAnalysis ? buildVisitors({ ...state.lastAnalysis, characterReactions: citizenVoices.reactions ?? state.lastAnalysis.characterReactions }, cutscene.seed) : proposal && proposal.proposal.id === cutscene.proposalId ? buildVisitors({ ...proposal.proposal.analysis, characterReactions: citizenVoices.reactions ?? proposal.proposal.analysis.characterReactions }, cutscene.seed) : null} setting={pickSetting(cutscene.seed)} decision={cutscene.decision} onDone={stopCutscene} />}
+      <div className="people-dock"><PeopleBar reactions={citizenVoices.reactions ?? proposal?.proposal.analysis.characterReactions ?? state.lastAnalysis?.characterReactions} pending={citizenVoices.pending} awaiting={citizenVoices.awaiting} onRetry={citizenVoices.canRetry ? citizenVoices.retry : undefined} onVisit={proposal || state.lastAnalysis ? () => setCutscene({ decision: proposal?.proposal.decision ?? state.history.at(-1)?.decision ?? "", proposalId: proposal?.proposal.id ?? "last", seed: Math.floor(Math.random() * 233280) }) : undefined} caption={proposal ? "Bürgerstimmen · Vorschau" : state.lastAnalysis ? `Zu: ${state.lastAnalysis.title}` : "Bürgerstimmen"} /></div>
+      {cutscene && (cutscene.proposalId === "last" ? !!state.lastAnalysis : proposal?.proposal.id === cutscene.proposalId) && <Cutscene visitors={cutscene.proposalId === "last" && state.lastAnalysis ? buildVisitors({ ...state.lastAnalysis, characterReactions: citizenVoices.reactions ?? state.lastAnalysis.characterReactions }, cutscene.seed) : proposal && proposal.proposal.id === cutscene.proposalId ? buildVisitors({ ...proposal.proposal.analysis, characterReactions: citizenVoices.reactions ?? proposal.proposal.analysis.characterReactions }, cutscene.seed) : []} setting={pickSetting(cutscene.seed)} decision={cutscene.decision} onDone={stopCutscene} />}
     </>}
 
     {screen === "balance" && state && <section className="space-y-6">{state.setup.vision && <p className="text-sm">Dein Ziel: „{state.setup.vision}“</p>}<PromiseTracks rows={promises} /><PixelCard className="space-y-5"><div className="flex items-center gap-3"><RichterFrosch bob={false} size={48} /><h3 className="font-pixel text-2xl">Wenn jemand anderes regiert</h3></div><p className="text-sm">Eine Person mit anderen Zielen übernimmt dieselben Befugnisse. Welche Regeln begrenzen sie?</p>

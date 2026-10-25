@@ -30,6 +30,7 @@ interface JsonModelRequest<T> {
 }
 
 function providerError(status: number, body: string): ModelError {
+  console.warn("[gemma-provider] request failed", { status });
   let invalidKey = status === 401 || status === 403;
   try {
     const data = JSON.parse(body);
@@ -49,7 +50,7 @@ export async function requestJsonModel<T>({ system, task, data, schema, maxToken
   const context = `${task}\n\nKontextdaten:\n${JSON.stringify(data)}`;
   const google = config.provider === "google";
   const url = google
-    ? `${config.baseUrl}/models/${encodeURIComponent(config.model.replace(/^models\//, ""))}:generateContent`
+    ? `${config.baseUrl}/models/${encodeURIComponent(config.model.replace(/^models\//, ""))}:streamGenerateContent?alt=sse`
     : `${config.baseUrl}/chat/completions`;
   const body = google ? {
     // Gemma models do not consistently support systemInstruction or JSON mode.
@@ -73,15 +74,20 @@ export async function requestJsonModel<T>({ system, task, data, schema, maxToken
     });
     const raw = await response.text();
     if (!response.ok) throw providerError(response.status, raw);
-    if (raw.length > 131_072) throw new ModelError(502, "Gemmas Antwort war zu groß und wurde nicht übernommen.");
-    const envelope: unknown = JSON.parse(raw);
+    if (raw.length > 524_288) throw new ModelError(502, "Gemmas Antwort war zu groß und wurde nicht übernommen.");
     let content: string;
     if (google) {
-      const result = z.object({
-        candidates: z.array(z.object({ content: z.object({ parts: z.array(z.object({ text: z.string().optional(), thought: z.boolean().optional() })) }) })).min(1),
-      }).parse(envelope);
-      content = result.candidates[0].content.parts.filter((part) => !part.thought).map((part) => part.text || "").join("");
+      const chunkSchema = z.object({ candidates: z.array(z.object({
+        content: z.object({ parts: z.array(z.object({ text: z.string().optional(), thought: z.boolean().optional() })) }),
+      })).optional() });
+      content = raw.split(/\r?\n\r?\n/).flatMap((event) => {
+        const data = event.split(/\r?\n/).filter((line) => line.startsWith("data: ")).map((line) => line.slice(6)).join("\n");
+        if (!data) return [];
+        const chunk = chunkSchema.parse(JSON.parse(data));
+        return chunk.candidates?.[0]?.content.parts.filter((part) => !part.thought).map((part) => part.text || "") ?? [];
+      }).join("");
     } else {
+      const envelope: unknown = JSON.parse(raw);
       const result = z.object({ choices: z.array(z.object({ message: z.object({ content: z.string() }) })).min(1) }).parse(envelope);
       content = result.choices[0].message.content;
     }

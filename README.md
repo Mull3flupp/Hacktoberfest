@@ -50,7 +50,7 @@ Pixelify Sans und Nunito sind samt Lizenzen [lokal enthalten](src/components/ui/
 
 ## Intro und Bürgerstimmen
 
-Vor dem Spiel läuft einmal pro Browser-Tab das vierteilige Wahlabend-Intro. „Überspringen“, Escape und die Pfeiltasten funktionieren; erst danach wird die Spielansicht geöffnet. Unter [/?intro](http://localhost:3000/?intro) kannst du es erneut ansehen. Ein vorhandenes Land bleibt erhalten.
+Bei jedem Laden der Spielseite und nach „Neues Land“ läuft das vierteilige Wahlabend-Intro. „Überspringen“, Escape und die Pfeiltasten funktionieren; erst danach wird die Spielansicht oder die Gründung geöffnet. Ein vorhandenes Land bleibt beim Neuladen erhalten.
 
 Finn, Oma Gisela, Bauer Heinz, Lea, Mika, Karen und Konsti sind die sieben Originalfiguren aus PR #2. Namen, Beschreibungen und Sprites bleiben unverändert. Jede Figur erhält einen eigenen Gemma-System-Prompt aus ihrer Beschreibung und reagiert mit einer persönlichen, skeptischen Stimme auf die konkrete Maßnahme. Weltzustand, vorgeschlagene Folgen und ihre eigene letzte Reaktion liefern den Kontext. Die Leiste lädt die Stimmen getrennt zur Vorschau und behält sie nach Bestätigung beim letzten Beschluss. Die Folgen können schon vorher geprüft und bestätigt werden.
 
@@ -58,7 +58,7 @@ Die Anbindung liegt in [character-reactions.ts](src/lib/server/character-reactio
 
 Eine Bürgerstimme erhält eine eigene HMAC-Signatur, gebunden an Welt, Vorschau und Zielrevision. Sie kann keine Kennzahlen ändern und gehört nicht zum bestätigungspflichtigen Weltzustand. Der Browser speichert die Stimmen des letzten bestätigten Beschlusses separat unter `koenig-citizen-voices-v1`; verspätete Antworten dürfen weiter eintreffen, solange derselbe Beschluss aktuell ist. Beim nächsten Beschluss wird die eigene vorherige Stimme signiert als Kontext übergeben. Andere Figuren, fremde Welten und nachträglich veränderte Stimmen werden serverseitig zurückgewiesen. Abgebrochene Vorschauen werden beim Neuladen nicht wiederhergestellt. Nach Ablauf der zehnminütigen Vorschau können dafür keine neuen Stimmen angefragt werden.
 
-Die Bestätigung bleibt ohne Modellaufruf möglich, auch wenn noch Stimmen laden oder fehlen. Alte signierte Spielstände mit `characterReactions` bleiben gültig. Fehlende neue Stimmen werden als ausstehend angezeigt und nicht durch erfundene Zitate ersetzt. Die Büro-Sequenz beginnt mit den direkt Betroffenen aus der Folgenanalyse; über „Im Büro ansehen“ lassen sich später auch die inzwischen geladenen festen Figuren ansehen. Die laufende Szene verändert ihre Besucher nicht während des Lesens.
+Die Bestätigung bleibt ohne Modellaufruf möglich, auch wenn noch Stimmen laden oder fehlen. Alte signierte Spielstände mit `characterReactions` bleiben gültig. Fehlende neue Stimmen werden als ausstehend angezeigt und nicht durch erfundene Zitate ersetzt. Die Büro-Sequenz öffnet sich direkt nach der Folgenanalyse mit den bereits bekannten Betroffenen; über „Im Büro ansehen“ lassen sich später auch die inzwischen geladenen festen Figuren ansehen. Die laufende Szene verändert ihre Besucher nicht während des Lesens.
 
 Für Diagnose ohne Prompt- oder Schlüsselprotokollierung kann `GEMMA_LOG_TIMINGS=1` gesetzt werden. Der Stimmen-Endpunkt protokolliert dann nur Figuren-ID und Laufzeit.
 

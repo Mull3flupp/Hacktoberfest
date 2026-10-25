@@ -1,29 +1,11 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { IntroSlides } from "./ui/IntroSlides";
 
-const SEEN_KEY = "koenig-intro-gesehen";
-
-/**
- * Zeigt die Intro-Show einmal pro Browser-Tab vor dem Spiel.
- * Mit ?intro in der Adresse läuft sie jederzeit erneut.
- */
+/** Zeigt die Intro-Show bei jedem Laden der Spielseite. */
 export function IntroGate({ children }: { children: ReactNode }) {
-  const [show, setShow] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    let seen = false;
-    try { seen = sessionStorage.getItem(SEEN_KEY) === "1"; } catch { /* ohne Speicher einfach zeigen */ }
-    setShow(new URLSearchParams(window.location.search).has("intro") || !seen);
-  }, []);
-
-  function done() {
-    try { sessionStorage.setItem(SEEN_KEY, "1"); } catch { /* ignorieren */ }
-    setShow(false);
-  }
-
-  if (show === null) return <div className="intro-cover" role="status" aria-label="Intro wird geladen" />;
-  if (show) return <IntroSlides onDone={done} />;
+  const [show, setShow] = useState(true);
+  if (show) return <IntroSlides onDone={() => setShow(false)} />;
   return <>{children}</>;
 }

@@ -192,7 +192,7 @@
   color: #fff8e7;
   background: #000;
   cursor: pointer;
-  animation: cut-title 2.2s steps(11, end) forwards;
+  animation: cut-title 0.9s steps(11, end) forwards;
 }
 
 .cut-title__place { margin: 0; font-size: clamp(1.6rem, 5vw, 3rem); }

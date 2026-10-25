@@ -61,7 +61,7 @@ function mockGoogle(content: unknown = freeAnalysis(), onCall?: (prompt: string)
   process.env.GEMMA_MODEL = "gemma-4-26b-a4b-it";
   globalThis.fetch = async (input, init) => {
     const url = String(input);
-    assert.equal(url, "https://generativelanguage.googleapis.com/v1beta/models/gemma-4-26b-a4b-it:generateContent");
+    assert.equal(url, "https://generativelanguage.googleapis.com/v1beta/models/gemma-4-26b-a4b-it:streamGenerateContent?alt=sse");
     assert.ok(!url.includes("test-google-key"));
     assert.equal(new Headers(init?.headers).get("x-goog-api-key"), "test-google-key-not-a-real-credential");
     const body = JSON.parse(String(init?.body));
@@ -74,10 +74,9 @@ function mockGoogle(content: unknown = freeAnalysis(), onCall?: (prompt: string)
     const personaId = /PERSONA_ID: ([\w-]+)/.exec(prompt)?.[1];
     const result = onCall?.(prompt) ?? (personaId ? { stance: "concern", quote: `${personaId}: Wer trägt die Kosten meiner Entscheidung?` } : content);
     if (result instanceof Response) return result;
-    return Response.json({ candidates: [{ content: { parts: [
-      { thought: true, text: "This private reasoning is not a JSON answer." },
-      { text: `\`\`\`json\n${typeof result === "string" ? result : JSON.stringify(result)}\n\`\`\`` },
-    ] } }] });
+    return new Response(`data: ${JSON.stringify({ candidates: [{ content: { parts: [{ thought: true, text: "This private reasoning is not a JSON answer." }] } }] })}\n\n`
+      + `data: ${JSON.stringify({ candidates: [{ content: { parts: [{ text: `\`\`\`json\n${typeof result === "string" ? result : JSON.stringify(result)}\n\`\`\`` }] } }] })}\n\n`,
+    { headers: { "Content-Type": "text/event-stream" } });
   };
 }
 async function preview(world: SignedWorld): Promise<SignedWorldProposal> {

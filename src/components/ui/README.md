@@ -50,14 +50,14 @@ Die beiden Schriften liegen samt Lizenzen unter [assets/fonts](assets/fonts/READ
 
 ## Intro und Bürgerfiguren
 
-- **Intro:** `src/components/intro-gate.tsx` zeigt `IntroSlides` auf der Startseite einmal pro Browser-Tab. Mit `/?intro` läuft es erneut. Die Szenen sind in `introScenes.tsx` aus Rechtecken gezeichnet, ohne Bilddateien.
+- **Intro:** `src/components/intro-gate.tsx` zeigt `IntroSlides` bei jedem Laden der Startseite. „Neues Land“ startet es ebenfalls vor der Gründung. Die Szenen sind in `introScenes.tsx` aus Rechtecken gezeichnet, ohne Bilddateien.
 - **Figuren:** Namen, Rollen und die unveränderten Charakterbeschreibungen stehen in `src/lib/simulation/characters.ts`. `src/lib/server/character-reactions.ts` erzeugt daraus pro Figur einen eigenen System-Prompt und eine separate Gemma-Anfrage. Jede Stimme kennt die vorgeschlagenen Weltfolgen und ihre eigene letzte Reaktion. Die Folgenvorschau ist unabhängig von den Stimmen. Jede Stimme kommt separat signiert über `/api/simulation/characters`, bei maximal zwei gleichzeitigen Browser-Anfragen. Sie wird nach Bestätigung außerhalb des signierten Weltzustands gespeichert. `characterReactions` bleibt für ältere Spielstände unterstützt. Ältere Spielstände ohne diese Reaktionen bleiben gültig; die Leiste zeigt dann die Leerlauf-Sprüche.
 - **Intro-Gate:** Solange das Intro läuft, wird die darunterliegende Spielansicht nicht geöffnet oder per Tastatur bedienbar. Nach Ende oder Überspringen wird ein gespeichertes Land wie bisher geladen.
 - PeopleBar und IntroSlides bringen ihre eigenen CSS-Dateien (`people.css`, `intro.css`) mit und funktionieren deshalb auch außerhalb von `.px-root`.
 
 ## Zwischensequenz
 
-- Startet im Spiel automatisch 10 Sekunden nach „Folgen analysieren“ (`open-world.tsx`, `CUTSCENE_DELAY`). Läuft die Analyse dann noch, zeigt das Büro „Vor der Tür warten schon Leute …“ (`visitors={null}`), bis die Besucher hereinkommen. „Überspringen“ oder Escape führt direkt zur Vorschau.
+- Startet im Spiel automatisch, sobald die Folgenanalyse fertig ist. Das Büro öffnet mit den fertigen Besuchern und ohne zusätzliche Wartephase. „Überspringen“ oder Escape führt direkt zur Vorschau.
 - Die Szene verwendet einen nativen modalen Dialog: Das Dashboard bleibt währenddessen per Tastatur und Maus gesperrt. Enter auf „Überspringen“ beendet die Szene direkt.
 - `buildVisitors(analysis, seed)` wählt 3–4 Besucher mit je einer Meinung: höchstens zwei direkt Betroffene aus `analysis.reactions` (Gemma wählt dafür `look` und `count` 1–4), dann feste Figuren, bevorzugt mit noch fehlenden Haltungen. Der `seed` wechselt, welche Figuren kommen.
 - `pickSetting(seed)` würfelt Raum (Büro, Kabinettssaal, Bürgerbüro), Tageszeit (morgens, mittags, abends, nachts), Wochentag und Uhrzeit aus. Die Räume stehen in `officeScene.tsx` (`ROOMS`, `TIMES`).
