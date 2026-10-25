@@ -50,7 +50,10 @@ export function prepareRuntime(root, runtime, install = installDependencies) {
 
 function installDependencies(runtime) {
   console.log("Richte lokale Entwicklungsdateien außerhalb des Cloud-Ordners ein …");
-  const result = spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", ["ci", "--no-audit", "--no-fund"], { cwd: runtime, stdio: "inherit" });
+  const result = process.platform === "win32"
+    // Seit Node 20.12 starten .cmd-Dateien nur über eine Shell; feste Argumente, daher als ein String.
+    ? spawnSync("npm.cmd ci --no-audit --no-fund", { cwd: runtime, stdio: "inherit", shell: true })
+    : spawnSync("npm", ["ci", "--no-audit", "--no-fund"], { cwd: runtime, stdio: "inherit" });
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error("Die lokalen Abhängigkeiten konnten nicht installiert werden. Bitte npm run dev erneut starten.");
 }
