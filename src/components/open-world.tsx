@@ -73,6 +73,9 @@ export function OpenWorld() {
   const [draft, setDraft] = useState("");
   const [proposal, setProposal] = useState<SignedWorldProposal | null>(null);
   const [cutscene, setCutscene] = useState<{ decision: string; proposalId: string; seed: number } | null>(null);
+  const cutsceneRef = useRef<typeof cutscene>(null);
+  const [reflectedProposalId, setReflectedProposalId] = useState<string | null>(null);
+  const reflectedProposalRef = useRef<string | null>(null);
   const citizenVoices = useCitizenVoices(snapshot, proposal);
   const proposalRef = useRef<SignedWorldProposal | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
@@ -186,10 +189,23 @@ export function OpenWorld() {
   const state = snapshot?.state;
   const due = dueCards(learning.progress, learning.decisionCount, new Date(now), learning.cards, true);
   const expired = !!proposal && proposal.proposal.expiresAt <= now;
+  const reflectionRequired = proposal?.proposal.kind === "decision" && reflectedProposalId !== proposal.proposal.id;
   const promises = state ? promiseRows(state) : [];
 
-  function updateProposal(next: SignedWorldProposal | null) { proposalRef.current = next; setProposal(next); }
-  function stopCutscene() { setCutscene(null); }
+  function updateProposal(next: SignedWorldProposal | null) {
+    if (next?.proposal.id !== proposalRef.current?.proposal.id) { reflectedProposalRef.current = null; setReflectedProposalId(null); }
+    proposalRef.current = next; setProposal(next);
+  }
+  function showCutscene(next: NonNullable<typeof cutscene>) { cutsceneRef.current = next; setCutscene(next); }
+  function stopCutscene() { cutsceneRef.current = null; setCutscene(null); }
+  function finishCutscene() {
+    const current = proposalRef.current;
+    if (current?.proposal.kind === "decision" && current.proposal.id === cutsceneRef.current?.proposalId) {
+      reflectedProposalRef.current = current.proposal.id; setReflectedProposalId(current.proposal.id);
+    }
+    stopCutscene();
+    requestAnimationFrame(() => analysisPanel.current?.focus());
+  }
   function updateDraft(text: string) { stopCutscene(); setDraft(text.slice(0, 1500)); updateProposal(null); setError(""); }
   function fillDraft(text: string) {
     if (busyRef.current) return;
@@ -230,8 +246,8 @@ export function OpenWorld() {
       if (next.proposal.worldId !== current.state.id || next.proposal.baseRevision !== current.state.revision) throw new Error("Diese Analyse gehört nicht zu deinem aktuellen Spielstand. Bitte erneut anfordern.");
       setNow(Date.now()); updateProposal(next); setScreen("desk");
       citizenVoices.start(current, next);
-      if (kind === "decision" && buildVisitors(next.proposal.analysis).length) {
-        setCutscene({ decision, proposalId: next.proposal.id, seed: Math.floor(Math.random() * 233280) });
+      if (kind === "decision") {
+        showCutscene({ decision, proposalId: next.proposal.id, seed: Math.floor(Math.random() * 233280) });
       }
     } catch (cause) { stopCutscene(); if (epoch.current === requestEpoch) setError(cause instanceof Error ? cause.message : "Die Modellanalyse ist fehlgeschlagen. Es wurde nichts beschlossen."); }
     finally { busyRef.current = false; setBusy(null); }
@@ -241,6 +257,9 @@ export function OpenWorld() {
     const current = snapshotRef.current;
     const pending = proposalRef.current;
     if (!current || !pending || busyRef.current) return;
+    if (pending.proposal.kind === "decision" && reflectedProposalRef.current !== pending.proposal.id) {
+      setError("Schließe zuerst Professor Igels Denkpause ab."); return;
+    }
     if (pending.proposal.baseRevision !== current.state.revision || pending.proposal.worldId !== current.state.id || pending.proposal.expiresAt <= Date.now()) {
       updateProposal(null); setError("Diese Analyse ist nicht mehr aktuell. Lass die Folgen erneut analysieren."); return;
     }
@@ -282,7 +301,7 @@ export function OpenWorld() {
       const result = await requestJson<TutorAnswer>("/api/simulation/tutor", { snapshot: current, question: text.trim(), ...(conceptId ? { conceptId } : {}) });
       if (epoch.current !== requestEpoch || snapshotRef.current?.state.revision !== current.state.revision) throw new Error("Dein Spielstand hat sich verändert. Bitte stelle die Frage im neuen Kontext erneut.");
       setMessages(previous => [...previous, { role: "assistant" as const, text: result.answer, source: result.source === "gemma" ? "Gemma" : "Lernhilfe" }].slice(-24));
-      if (spoken) void speakProfessor(result.answer);
+      if (spoken && !cutsceneRef.current) void speakProfessor(result.answer);
       return result;
     } catch (cause) {
       if (epoch.current === requestEpoch) setError(cause instanceof Error ? cause.message : "Die Frage konnte nicht beantwortet werden.");
@@ -350,7 +369,7 @@ export function OpenWorld() {
           {busy === "analyze" && <p className="flex items-center gap-3 text-sm" role="status"><ProfessorIgel bob={false} size={40} />Folgen werden analysiert …</p>}
           {proposal && <section ref={analysisPanel} tabIndex={-1} className="scroll-mt-5" aria-labelledby="analysis-title"><PixelCard tone="blue" className="space-y-5"><p className="font-pixel text-sm uppercase">Vorschau · noch kein Beschluss</p><h2 id="analysis-title" className="font-pixel text-balance text-3xl">{proposal.proposal.analysis.title}</h2><blockquote className="border-l-4 border-[var(--px-blue-dark)] pl-4 text-sm">{proposal.proposal.decision}</blockquote><p className="leading-relaxed">{proposal.proposal.analysis.interpretation}</p><details className="pixel-details"><summary>Begründung</summary><p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">{proposal.proposal.analysis.analysis}</p></details>
             <AnalysisDetails analysis={proposal.proposal.analysis} onConcept={openConcept} onRemember={remember} rememberedIds={rememberedIds} />
-            <div className="flex flex-wrap gap-3 border-t-2 border-[var(--px-blue-dark)] pt-4"><PixelButton variant="info" disabled={!!busy || expired} onClick={() => void commit()}>{busy === "commit" ? "Wird übernommen …" : proposal.proposal.kind === "advance" ? "Quartal abschließen" : "Beschluss bestätigen"}</PixelButton><PixelButton variant="secondary" disabled={!!busy} onClick={() => { stopCutscene(); updateProposal(null); decisionInput.current?.focus(); }}>Ändern</PixelButton></div>
+            <div className="flex flex-wrap gap-3 border-t-2 border-[var(--px-blue-dark)] pt-4"><PixelButton variant="info" disabled={!!busy || expired || reflectionRequired} onClick={() => void commit()}>{busy === "commit" ? "Wird übernommen …" : proposal.proposal.kind === "advance" ? "Quartal abschließen" : "Beschluss bestätigen"}</PixelButton><PixelButton variant="secondary" disabled={!!busy} onClick={() => { stopCutscene(); updateProposal(null); decisionInput.current?.focus(); }}>Ändern</PixelButton></div>
             {error && <PixelNotice error>{error}</PixelNotice>}
             {expired && <PixelNotice error>Diese Vorschau ist abgelaufen. Dein Stand ist unverändert. <PixelButton size="sm" variant="secondary" disabled={!!busy} onClick={() => void analyze(proposal.proposal.kind)}>Erneut analysieren</PixelButton></PixelNotice>}
           </PixelCard></section>}
@@ -367,15 +386,17 @@ export function OpenWorld() {
       <div className="mt-6"><PixelCard title="Nachrichten"><div className="mt-4 space-y-4">{state.news.slice(0, 4).map(news => <article key={news.id} className="border-b-2 border-[var(--px-gray)] pb-4"><p className="font-pixel text-xs">{roundLabel(news.round)}</p><h4 className="mt-1 font-bold">{news.title}</h4><p className="mt-2 text-sm leading-relaxed">{news.text.length > 320 ? `${news.text.slice(0, 320).trim()} …` : news.text}</p></article>)}</div><PixelButton className="mt-4" size="sm" variant="secondary" onClick={() => setScreen("chronicle")}>Chronik öffnen</PixelButton></PixelCard></div>
       {/* Professor Igel wartet am linken Rand und klappt bei Bedarf als Schublade auf */}
       {!tutorOpen && <button type="button" className="igel-tab" aria-expanded={false} aria-controls="world-tutor" onClick={() => setTutorOpen(true)}><ProfessorIgel bob={false} size={56} /><span className="igel-tab__label font-pixel">Frag mich!</span></button>}
-      {tutorOpen && <aside id="world-tutor" className="igel-drawer" aria-label="Professor Igel">
+      {tutorOpen && !cutscene && <aside id="world-tutor" className="igel-drawer" aria-label="Professor Igel">
         <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><ProfessorIgel bob={false} size={48} /><h3 className="font-pixel text-xl">Professor Igel</h3></div><PixelButton variant="secondary" size="sm" aria-expanded onClick={() => setTutorOpen(false)}>Schließen</PixelButton></div>
         <div className="space-y-4"><div className="max-h-80 space-y-3 overflow-auto" role="log" aria-label="Tutor-Gespräch">{messages.map((message, index) => <div className={cn("border-2 border-[var(--px-ink)] p-3 text-sm", message.role === "user" ? "bg-[var(--px-purple-light)]" : "bg-[var(--px-white)]")} key={index}><p className="font-bold">{message.role === "user" ? "Du" : "Professor Igel"}</p><p className="mt-1 whitespace-pre-wrap leading-relaxed">{message.text}</p></div>)}</div><form className="space-y-3" onSubmit={event => { event.preventDefault(); const text = question; void askTutor(text).then(() => setQuestion(previous => previous === text ? "" : previous)).catch(() => {}); }}><label htmlFor="world-question">Deine Frage</label><textarea id="world-question" value={question} onChange={event => setQuestion(event.target.value)} maxLength={1500} placeholder="Was habe ich bei meiner Entscheidung übersehen?" required /><PixelButton type="submit" variant="tutor" disabled={tutoring || !!busy || !question.trim()}>{tutoring ? "Professor Igel denkt nach …" : "Frage stellen"}</PixelButton></form></div>
         {audioConfigured && !voiceConfigured && <ProfessorVoice disabled={tutoring || !!busy} onQuestion={text => askTutor(text)} />}
         {voiceConfigured && <VoicePanel pixel bridge={voiceBridge} contextVersion={`${state.id}:${state.revision}:${proposal?.proposal.id ?? "none"}`} configured={voiceConfigured} onTranscript={(source, text) => { setTutorOpen(true); setMessages(previous => [...previous, { role: source === "user" ? "user" as const : "assistant" as const, text, source: "Sprachagent" }].slice(-24)); }} />}
       </aside>}
       {/* Bürgerstimmen bleiben unten am Bildschirm sichtbar */}
-      <div className="people-dock"><PeopleBar reactions={citizenVoices.reactions ?? proposal?.proposal.analysis.characterReactions ?? state.lastAnalysis?.characterReactions} pending={citizenVoices.pending} awaiting={citizenVoices.awaiting} onRetry={citizenVoices.canRetry ? citizenVoices.retry : undefined} onVisit={proposal || state.lastAnalysis ? () => setCutscene({ decision: proposal?.proposal.decision ?? state.history.at(-1)?.decision ?? "", proposalId: proposal?.proposal.id ?? "last", seed: Math.floor(Math.random() * 233280) }) : undefined} caption={proposal ? "Bürgerstimmen · Vorschau" : state.lastAnalysis ? `Zu: ${state.lastAnalysis.title}` : "Bürgerstimmen"} /></div>
-      {cutscene && (cutscene.proposalId === "last" ? !!state.lastAnalysis : proposal?.proposal.id === cutscene.proposalId) && <Cutscene visitors={cutscene.proposalId === "last" && state.lastAnalysis ? buildVisitors({ ...state.lastAnalysis, characterReactions: citizenVoices.reactions ?? state.lastAnalysis.characterReactions }, cutscene.seed) : proposal && proposal.proposal.id === cutscene.proposalId ? buildVisitors({ ...proposal.proposal.analysis, characterReactions: citizenVoices.reactions ?? proposal.proposal.analysis.characterReactions }, cutscene.seed) : []} setting={pickSetting(cutscene.seed)} decision={cutscene.decision} onDone={stopCutscene} />}
+      <div className="people-dock"><PeopleBar reactions={citizenVoices.reactions ?? proposal?.proposal.analysis.characterReactions ?? state.lastAnalysis?.characterReactions} pending={citizenVoices.pending} awaiting={citizenVoices.awaiting} onRetry={citizenVoices.canRetry ? citizenVoices.retry : undefined} onVisit={proposal || state.lastAnalysis ? () => showCutscene({ decision: proposal?.proposal.decision ?? state.history.at(-1)?.decision ?? "", proposalId: proposal?.proposal.id ?? "last", seed: Math.floor(Math.random() * 233280) }) : undefined} caption={proposal ? "Bürgerstimmen · Vorschau" : state.lastAnalysis ? `Zu: ${state.lastAnalysis.title}` : "Bürgerstimmen"} /></div>
+      {cutscene && (cutscene.proposalId === "last" ? !!state.lastAnalysis : proposal?.proposal.id === cutscene.proposalId) && <Cutscene key={cutscene.proposalId} visitors={cutscene.proposalId === "last" && state.lastAnalysis ? buildVisitors({ ...state.lastAnalysis, characterReactions: citizenVoices.reactions ?? state.lastAnalysis.characterReactions }, cutscene.seed) : proposal && proposal.proposal.id === cutscene.proposalId ? buildVisitors({ ...proposal.proposal.analysis, characterReactions: citizenVoices.reactions ?? proposal.proposal.analysis.characterReactions }, cutscene.seed) : []} setting={pickSetting(cutscene.seed)} decision={cutscene.decision}
+        reflectionContext={reflectionRequired && proposal && snapshot ? { snapshot, analysis: proposal, characterVoices: citizenVoices.receipts } : undefined}
+        onRemember={remember} rememberedIds={rememberedIds} onDone={finishCutscene} />}
     </>}
 
     {screen === "balance" && state && <section className="space-y-6">{state.setup.vision && <p className="text-sm">Dein Ziel: „{state.setup.vision}“</p>}<PromiseTracks rows={promises} /><PixelCard className="space-y-5"><div className="flex items-center gap-3"><RichterFrosch bob={false} size={48} /><h3 className="font-pixel text-2xl">Wenn jemand anderes regiert</h3></div><p className="text-sm">Eine Person mit anderen Zielen übernimmt dieselben Befugnisse. Welche Regeln begrenzen sie?</p>

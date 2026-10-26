@@ -78,6 +78,10 @@
 }
 
 .cut-visitor.is-waiting { filter: brightness(0.92); }
+.cut-visitor.is-leaving { animation: cut-leave 1s steps(12, end) forwards; }
+.cut-professor { transition: bottom 350ms steps(5, end); }
+.cut-professor.is-entering { animation: cut-professor-enter 1s steps(12, end) both; }
+.cut-professor.is-sitting .cut-member { animation: cut-professor-sit 350ms steps(5, end) both; }
 /* Figuren passend zum Licht der Tageszeit */
 .cut-camera--abends .cut-visitor { filter: sepia(0.15) saturate(1.1) brightness(0.95); }
 .cut-camera--nachts .cut-visitor { filter: brightness(0.78) saturate(0.9); }
@@ -167,6 +171,7 @@
 }
 
 .cut-hud__decision { font-family: var(--font-body), "Nunito", system-ui, sans-serif; font-size: 0.9rem; }
+.cut-hud__actions { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .cut-rec { color: var(--px-red); animation: cut-blink 1.2s steps(1, end) infinite; }
 
 .cutscene .cut-skip {
@@ -285,6 +290,16 @@
 .cutscene .cut-next:active { transform: translateY(var(--px-shadow)); box-shadow: none; }
 .cutscene .cut-next:focus-visible, .cutscene .cut-skip:focus-visible { outline: 3px solid var(--px-yellow); outline-offset: 2px; }
 
+/* Learning cards use the existing speech panel, with room for long German text. */
+.cut-dialog--reflection { max-height: calc(100dvh - 90px); }
+.cut-dialog--reflection .cut-dialog__body { overflow-y: auto; overscroll-behavior: contain; overflow-wrap: anywhere; hyphens: auto; }
+.cut-dialog--reflection .cut-dialog__text { min-height: 0; font-size: 1rem; }
+.cut-reflection__concept { margin: 0 0 8px; font-weight: 800; }
+.cut-reflection__question { margin-top: 12px; padding-top: 10px; border-top: 2px solid var(--px-gray); font-weight: 800; }
+.cutscene .cut-save { margin-top: 12px; min-height: 44px; padding: 6px 10px; background: var(--px-yellow-light); color: var(--px-ink); border: 2px solid var(--px-ink); }
+.cutscene .cut-save:disabled { cursor: default; opacity: 0.7; }
+.cutscene .cut-save:focus-visible { outline: 3px solid var(--px-blue); outline-offset: 2px; }
+
 .cut-caret {
   display: inline-block;
   width: 0.5em;
@@ -314,6 +329,9 @@
 @keyframes cut-frame-a { 0% { opacity: 1; } 50% { opacity: 0; } }
 @keyframes cut-frame-b { 0% { opacity: 0; } 50% { opacity: 1; } }
 @keyframes cut-walk { 50% { transform: translateY(-4%); } }
+@keyframes cut-leave { 0% { opacity: 1; } 80% { opacity: 1; } 100% { left: 50%; bottom: 37.5%; width: 10%; opacity: 0; } }
+@keyframes cut-professor-enter { from { left: 50%; bottom: 37.5%; width: 10%; opacity: 0; } 15% { opacity: 1; } to { left: 50%; bottom: 23%; width: 18%; opacity: 1; } }
+@keyframes cut-professor-sit { from { transform: translateY(-10%); } to { transform: translateY(0); } }
 @keyframes cut-hop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5%); } }
 @keyframes cut-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3%); } 75% { transform: translateX(3%); } }
 @keyframes cut-tilt { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-3deg); } }
@@ -328,16 +346,23 @@
   .cut-dialog__text { font-size: 1rem; }
   .cut-dialog__controls { flex-direction: row; align-items: center; width: 100%; }
   .cutscene .cut-next { margin-left: auto; padding: 0 12px; font-size: 0.85rem; }
+  .cut-dialog--reflection { display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; max-height: min(62dvh, calc(100dvh - 80px)); }
+  .cut-dialog--reflection .cut-dialog__body { grid-column: 2; grid-row: 1; }
+  .cut-dialog--reflection .cut-dialog__controls { grid-column: 1 / -1; grid-row: 2; }
+  .cut-dialog--reflection .cut-dialog__headline { font-size: 1.35rem; }
+  .cut-hud__actions { gap: 4px; }
+  .cutscene .cut-skip { min-height: 44px; padding: 6px 8px; }
 }
 
 /* Hochkant (Handy): Szene wie ein Querformat-Video, Dialogbox darunter */
 @media (max-aspect-ratio: 4/5) {
   .cut-camera { top: 40%; width: 170vw; height: 95.6vw; }
+  .cut-camera.is-reflecting { top: 23%; }
   .cut-vignette { background: radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(10, 8, 20, 0.5) 100%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cutscene, .cut-dialog, .cut-rec, .cut-caret, .cut-member, .office-dust rect, .office-steam rect, .cut-frame--a { animation: none !important; }
+  .cutscene, .cut-dialog, .cut-rec, .cut-caret, .cut-member, .cut-visitor, .office-dust rect, .office-steam rect, .cut-frame--a { animation: none !important; }
   .cut-frame--b { display: none; }
   .cut-camera, .cut-visitor, .office-door, .office-doorlight { transition: none; }
 }

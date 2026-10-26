@@ -103,7 +103,7 @@ export function useCitizenVoices(snapshot: SignedWorld | null, proposal: SignedW
     : matchesWorld(job, snapshot) ? job : matchesWorld(confirmed, snapshot) ? confirmed : null;
   const reactions = visible?.voices.map(item => item.voice.reaction).sort((a, b) => characters.findIndex(item => item.id === a.characterId) - characters.findIndex(item => item.id === b.characterId));
   return {
-    start, cancel, reactions, pending: visible?.pending ?? [], failures: visible?.failures ?? {},
+    start, cancel, reactions, receipts: visible?.voices ?? [], pending: visible?.pending ?? [], failures: visible?.failures ?? {},
     awaiting: !!visible,
     canRetry: !!visible && !visible.pending.length && visible.voices.length < characters.length && visible.context.analysis.proposal.expiresAt > Date.now(),
     retry: () => { if (visible) run(visible); },
