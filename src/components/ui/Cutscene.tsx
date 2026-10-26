@@ -1,10 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import { playSoundEffect, speakCharacter, stopCurrentSpeech, stopSoundEffect } from "@/lib/audio/manager";
+import { useCallback, useEffect, useReducer, useRef, useState, type CSSProperties } from "react";
+import { isMuted, playSoundEffect, setMuted, speakCharacter, speakProfessor, stopCurrentSpeech, stopSoundEffect, subscribeMuted } from "@/lib/audio/manager";
 import { voiceForVisitor } from "@/lib/audio/voices";
+import { concepts } from "@/lib/game/engine";
+import { animatedPhase, cutsceneReducer, discussionPhase, type CutsceneAction } from "@/lib/game/cutscene-flow";
+import { reflectionCardSpeech, type ProfessorReflection } from "@/lib/game/professor-reflection";
 import { getCharacter, type CharacterId, type VisitorLook } from "@/lib/simulation/characters";
 import type { ActorReaction, CharacterReaction, WorldAnalysis } from "@/lib/simulation/types";
+import { useProfessorReflection, type ReflectionContext } from "../use-professor-reflection";
+import { ProfessorIgel } from "./characters";
 import { bodyFont, pixelFont } from "./fonts";
 import { OfficeBackground, OfficeDesk, pickSetting, type Setting } from "./officeScene";
 import { PixelSprite } from "./PixelSprite";
@@ -133,39 +138,61 @@ export type CutsceneProps = {
   caption?: string;
   /** Raum, Tageszeit und Uhrzeit; ohne Angabe zufällig */
   setting?: Setting;
+  /** Present only for a new decision; replays keep the existing visitor sequence. */
+  reflectionContext?: ReflectionContext;
+  onRemember?: (id: string) => unknown;
+  rememberedIds?: string[];
   onDone: () => void;
 };
-
-type Phase = "title" | "walk" | "talk" | "final";
 
 /**
  * Zwischensequenz in Ego-Perspektive wie im Karrieremodus: Du sitzt am Schreibtisch,
  * die Tür geht auf und Besucher kommen nacheinander auf dich zu und sagen ihre Meinung.
  */
-export function Cutscene({ visitors: incoming, decision, caption = "Deine Entscheidung", setting: given, onDone }: CutsceneProps) {
+export function Cutscene({ visitors: incoming, decision, caption = "Deine Entscheidung", setting: given, reflectionContext, onRemember, rememberedIds = [], onDone }: CutsceneProps) {
   const [randomSetting] = useState(() => pickSetting(Math.random() * 233280));
   const setting = given ?? randomSetting;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const reduced = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   const [visitors, setVisitors] = useState<CutsceneVisitor[]>(incoming);
   const incomingSignature = incoming.map(visitor => `${visitor.key}:${visitor.quote}`).join("\u0000");
-  const afterTitle: Phase = incoming.length ? "walk" : "final";
-  const [index, setIndex] = useState(0);
-  const [phase, setPhase] = useState<Phase>(reduced ? afterTitle : "title");
+  const [flow, dispatch] = useReducer(cutsceneReducer, { phase: reduced ? (incoming.length ? "walk" : "final") : "title", index: 0, cardIndex: 0, step: 0 });
+  const { phase, index, cardIndex, step } = flow;
+  const [reflection, setReflection] = useState<ProfessorReflection | null>(null);
+  const { prepared, fallback } = useProfessorReflection(reflectionContext, visitors.map(visitor => visitor.key), !!reflection);
+  const [muted, setMutedState] = useState(isMuted);
+  const done = useRef(false);
+  const lastAdvance = useRef(0);
   const [arrived, setArrived] = useState(false);
   const [typed, setTyped] = useState(0);
   const current = visitors[index];
   const spokenLine = current ? `${index}:${voiceForVisitor(current)}:${current.quote}` : "";
   const quote = current ? `„${current.quote}“` : "";
+  const card = phase === "professor-reflection" ? reflection?.cards[cardIndex] : undefined;
+  const professorLine = phase === "professor-introduction" ? reflection?.introduction
+    : phase === "professor-closing" ? reflection?.closing : card ? reflectionCardSpeech(card) : undefined;
+  const advance = useCallback((type: CutsceneAction["type"] = "next") => {
+    dispatch({ type, step, visitorCount: visitors.length, cardCount: reflection?.cards.length ?? 3, reflection: !!reflectionContext });
+  }, [step, visitors.length, reflection?.cards.length, !!reflectionContext]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     dialog?.showModal();
-    return () => { dialog?.close(); stopCurrentSpeech(); stopSoundEffect("protest"); };
+    return () => { dialog?.close(); stopCurrentSpeech(); stopSoundEffect("protest"); stopSoundEffect("footsteps"); };
   }, []);
+
+  useEffect(() => subscribeMuted(setMutedState), []);
+
+  useEffect(() => {
+    if (phase !== "decision" || done.current) return;
+    done.current = true;
+    stopCurrentSpeech();
+    onDone();
+  }, [phase, onDone]);
 
   // Nachgeladene Bürger kommen hinzu, ohne bereits sprechende Besucher auszutauschen.
   useEffect(() => {
+    if (!discussionPhase(phase)) return;
     setVisitors(previous => {
       if (!previous.length) return incoming;
       const known = new Set(previous.map(visitor => visitor.key));
@@ -173,39 +200,37 @@ export function Cutscene({ visitors: incoming, decision, caption = "Deine Entsch
       return additions.length ? [...previous, ...additions].slice(0, MAX_VISITORS) : previous;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [incomingSignature]);
+  }, [incomingSignature, phase]);
 
-  const protest = visitors.some(visitor => memberCount(visitor) > 1 && visitor.stance === "oppose");
+  const protest = discussionPhase(phase) && visitors.some(visitor => memberCount(visitor) > 1 && visitor.stance === "oppose");
   useEffect(() => {
     if (protest) playSoundEffect("protest", { loop: true });
     return () => stopSoundEffect("protest");
   }, [protest]);
 
-  // Kurze Einblendung von Ort und Uhrzeit
+  // Lock one coherent set of cards before the Professor begins; late responses cannot replace it.
   useEffect(() => {
-    if (phase !== "title") return;
-    const timer = setTimeout(() => setPhase(afterTitle), 900);
-    return () => clearTimeout(timer);
-  }, [phase, afterTitle]);
+    if (phase === "professor-introduction" && !reflection) setReflection(prepared ?? fallback);
+  }, [phase, reflection, prepared, fallback]);
 
   useEffect(() => {
-    if (phase === "final" && index + 1 < visitors.length) {
-      setIndex(index + 1);
-      setPhase("walk");
-    }
-  }, [phase, index, visitors.length]);
+    if (phase === "final" && index + 1 < visitors.length) advance("visitors-added");
+  }, [phase, index, visitors.length, advance]);
 
-  // Tür auf, Besuch läuft von der Tür bis vor den Schreibtisch
+  // Shared door, footsteps and room animation, now also used for the Professor's visit.
   useEffect(() => {
-    if (phase !== "walk") return;
-    setArrived(false); setTyped(0);
+    if (!animatedPhase(phase)) return;
+    const duration = { title: 900, walk: 1100, "npc-exit": 1000, "room-empty": 240,
+      "professor-enter": 1000, "professor-seat": 350, "professor-stand": 300, "professor-exit": 1000 };
+    if (phase === "walk") { setArrived(false); setTyped(0); }
     stopCurrentSpeech();
-    playSoundEffect("door-open");
-    const steps = setTimeout(() => playSoundEffect("footsteps"), reduced ? 0 : 150);
-    const start = setTimeout(() => setArrived(true), reduced ? 0 : 250);
-    const talk = setTimeout(() => setPhase("talk"), reduced ? 0 : 1100);
-    return () => { clearTimeout(steps); clearTimeout(start); clearTimeout(talk); };
-  }, [phase, index, reduced]);
+    const walking = ["walk", "npc-exit", "professor-enter", "professor-exit"].includes(phase);
+    if (walking) playSoundEffect("door-open");
+    const steps = walking ? setTimeout(() => playSoundEffect("footsteps"), reduced ? 0 : 150) : undefined;
+    const start = phase === "walk" ? setTimeout(() => setArrived(true), reduced ? 0 : 250) : undefined;
+    const timer = setTimeout(() => advance("animation-done"), reduced ? 0 : duration[phase as keyof typeof duration]);
+    return () => { clearTimeout(steps); clearTimeout(start); clearTimeout(timer); stopSoundEffect("footsteps"); };
+  }, [phase, step, reduced, advance]);
 
   // Der Besuch spricht seinen Satz mit eigener ElevenLabs-Stimme.
   useEffect(() => {
@@ -214,6 +239,12 @@ export function Cutscene({ visitors: incoming, decision, caption = "Deine Entsch
     return () => stopCurrentSpeech();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- nur bei neuem Satz sprechen, nicht bei jedem Render
   }, [phase, spokenLine]);
+
+  useEffect(() => {
+    if (!professorLine) return;
+    void speakProfessor(professorLine);
+    return () => stopCurrentSpeech();
+  }, [professorLine, step]);
 
   // Schreibmaschinen-Effekt in der Dialogbox
   useEffect(() => {
@@ -224,54 +255,76 @@ export function Cutscene({ visitors: incoming, decision, caption = "Deine Entsch
   }, [phase, quote, reduced]);
 
   const next = useCallback(() => {
-    if (phase === "title") { setPhase(afterTitle); return; }
-    if (phase === "final") { onDone(); return; }
-    if (phase === "walk") { setArrived(true); setPhase("talk"); return; }
-    if (typed < quote.length) { setTyped(quote.length); return; }
-    if (index + 1 < visitors.length) { setIndex(index + 1); setPhase("walk"); }
-    else setPhase("final");
-  }, [phase, afterTitle, typed, quote.length, index, visitors.length, onDone]);
+    if (phase === "talk" && typed < quote.length) { setTyped(quote.length); return; }
+    if (phase === "professor-introduction" && !reflection) return;
+    // Double clicks/key repeats acknowledge one step, never several cards.
+    if (Date.now() - lastAdvance.current < 300) return;
+    lastAdvance.current = Date.now();
+    stopCurrentSpeech();
+    advance();
+  }, [phase, typed, quote.length, reflection, advance]);
+
+  const skipAnimation = useCallback(() => {
+    stopCurrentSpeech();
+    if (!reflectionContext) { onDone(); return; }
+    advance("skip-animation");
+  }, [reflectionContext, onDone, advance]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if ((event.key === "Enter" || event.key === " ") && event.target instanceof Element && event.target.closest("button")) return;
+      if (event.repeat || event.defaultPrevented) return;
+      if (event.target instanceof Element && event.target.closest("button, input, textarea, select, a")) return;
       if (event.key === "ArrowRight" || event.key === "Enter" || event.key === " ") { event.preventDefault(); next(); }
-      else if (event.key === "Escape") onDone();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [next, onDone]);
+  }, [next]);
 
-  const doorOpen = phase === "walk";
-  const shown = phase === "final" ? visitors : phase === "title" ? [] : visitors.slice(0, index + 1);
-  const finalSpots = phase === "final" ? lineup(visitors) : [];
+  const doorOpen = ["walk", "npc-exit", "professor-enter", "professor-exit"].includes(phase);
+  const shown = phase === "final" || phase === "npc-exit" ? visitors : discussionPhase(phase) && phase !== "title" ? visitors.slice(0, index + 1) : [];
+  const finalSpots = lineup(visitors);
   const tally = (["support", "oppose", "concern", "mixed"] as Stance[]).map((stance) => [stance, visitors.filter((visitor) => visitor.stance === stance).length] as const).filter(([, count]) => count > 0);
+  const professorPresent = phase.startsWith("professor-");
+  const seated = ["professor-seat", "professor-introduction", "professor-reflection", "professor-closing"].includes(phase);
+  const savedConcept = card && concepts.find(concept => [concept.id, concept.title].some(value => value.toLocaleLowerCase("de-DE") === card.concept.toLocaleLowerCase("de-DE")));
+  const stage = phase === "npc-exit" ? "Die Besucher verabschieden sich und verlassen den Raum …"
+    : phase === "room-empty" ? "Der Raum ist leer. Ein Moment zum Nachdenken …"
+    : phase === "professor-enter" ? "Professor Igel kommt durch die Tür zum Tisch …"
+    : phase === "professor-seat" ? "Professor Igel setzt sich dir gegenüber …"
+    : phase === "professor-stand" ? "Professor Igel steht auf …"
+    : phase === "professor-exit" ? "Professor Igel verlässt das Büro. Jetzt bist du am Zug …" : "";
 
   return (
-    <dialog ref={dialogRef} className={`cutscene ${pixelFont.variable} ${bodyFont.variable}`} aria-label="Zwischensequenz: Besuch in deinem Büro" onCancel={event => { event.preventDefault(); onDone(); }}>
-      <div className={`cut-camera cut-camera--${setting.time} ${phase === "talk" ? "is-close" : ""}`}>
+    <dialog ref={dialogRef} data-phase={phase} className={`cutscene ${pixelFont.variable} ${bodyFont.variable}`} aria-label="Zwischensequenz: Besuch in deinem Büro" onCancel={event => { event.preventDefault(); skipAnimation(); }}>
+      <div className={`cut-camera cut-camera--${setting.time} ${professorPresent ? "is-reflecting" : ""} ${phase === "talk" || professorLine ? "is-close" : ""}`}>
         <OfficeBackground doorOpen={doorOpen} room={setting.room} time={setting.time} />
         {shown.map((visitor, position) => {
-          const isCurrent = position === index && phase !== "final";
-          const spot = phase === "final" ? finalSpots[position] : isCurrent ? (arrived || phase === "talk" ? AT_DESK : AT_DOOR) : WAITING[position % WAITING.length];
+          const isCurrent = position === index && phase !== "final" && phase !== "npc-exit";
+          const spot = phase === "final" || phase === "npc-exit" ? finalSpots[position] : isCurrent ? (arrived || phase === "talk" ? AT_DESK : AT_DOOR) : WAITING[position % WAITING.length];
           return (
             <div
               key={visitor.key}
-              className={`cut-visitor ${isCurrent && phase === "walk" ? "is-walking" : ""} ${isCurrent && phase === "talk" ? `is-talking cut-visitor--${visitor.stance}` : ""} ${isCurrent ? "" : "is-waiting"}`}
-              style={placed(spot, memberCount(visitor), phase === "final" ? 100 : isCurrent ? 42 : 20)}
+              className={`cut-visitor ${phase === "npc-exit" ? "is-leaving is-walking" : ""} ${isCurrent && phase === "walk" ? "is-walking" : ""} ${isCurrent && phase === "talk" ? `is-talking cut-visitor--${visitor.stance}` : ""} ${isCurrent ? "" : "is-waiting"}`}
+              style={placed(spot, memberCount(visitor), phase === "final" || phase === "npc-exit" ? 100 : isCurrent ? 42 : 20)}
             >
               {!isCurrent && <span className={`cut-badge cut-stance--${visitor.stance}`} aria-hidden="true">{STANCES[visitor.stance].icon}</span>}
-              <VisitorFigure visitor={visitor} walking={isCurrent && phase === "walk"} mood={isCurrent && phase === "walk" ? "neutral" : MOODS[visitor.stance]} />
+              <VisitorFigure visitor={visitor} walking={phase === "npc-exit" || isCurrent && phase === "walk"} mood={phase === "npc-exit" || isCurrent && phase === "walk" ? "neutral" : MOODS[visitor.stance]} />
             </div>
           );
         })}
+        {professorPresent && <div className={`cut-visitor cut-professor ${seated ? "is-seated" : ""} ${phase === "professor-seat" ? "is-sitting" : ""} ${phase === "professor-enter" ? "is-entering is-walking" : ""} ${phase === "professor-exit" ? "is-leaving is-walking" : ""}`} style={placed({ left: 50, bottom: seated ? 20 : 23, width: 18 }, 1, 20)} aria-label={seated ? "Professor Igel sitzt dir gegenüber" : "Professor Igel"}>
+          <span className="cut-figure"><span className="cut-member"><ProfessorIgel size={64} bob={false} /></span></span>
+        </div>}
         <OfficeDesk time={setting.time} />
       </div>
       <div className="cut-vignette" aria-hidden="true" />
 
       <div className="cut-hud">
         <span className="font-pixel cut-hud__place"><span className="cut-rec" aria-hidden="true">●</span> {caption}: <span className="cut-hud__decision">{decision}</span></span>
-        <button type="button" className="cut-skip font-pixel" onClick={onDone} autoFocus>Überspringen ▸▸</button>
+        <div className="cut-hud__actions">
+          <button type="button" className="cut-skip font-pixel" aria-pressed={!muted} onClick={() => setMuted(!muted)}>{muted ? "Ton aus" : "Ton an"}</button>
+          {(!reflectionContext || animatedPhase(phase)) && <button type="button" className="cut-skip font-pixel" onClick={skipAnimation}>{reflectionContext ? "Animation kürzen ▸▸" : "Überspringen ▸▸"}</button>}
+        </div>
       </div>
 
       {phase === "title" && (
@@ -282,13 +335,28 @@ export function Cutscene({ visitors: incoming, decision, caption = "Deine Entsch
       )}
 
       {phase !== "title" && (
-        <div className="cut-dialog" aria-live="polite">
+        <div className={`cut-dialog ${professorLine ? "cut-dialog--reflection" : ""}`} aria-live="polite">
           {phase === "final" ? (
             <div className="cut-dialog__body">
               <h2 className="font-pixel cut-dialog__headline">Reaktionen</h2>
               {tally.length > 0 && <p className="cut-dialog__tally">{tally.map(([stance, count]) => <span key={stance} className={`cut-stance cut-stance--${stance}`}>{count}× {STANCES[stance].label}</span>)}</p>}
             </div>
-          ) : current && (
+          ) : professorLine ? (
+            <>
+              <div className="cut-dialog__portrait" aria-hidden="true"><ProfessorIgel size={96} bob={false} /></div>
+              <div className="cut-dialog__body" tabIndex={0}>
+                <p className="cut-dialog__name font-pixel">Professor Igel <small>· Denkpause</small></p>
+                {card ? <article key={card.id} aria-labelledby={`reflection-${card.id}`}>
+                  <p className="cut-dialog__eyebrow">{card.type === "concept" ? "Politischer Begriff" : card.type === "impact" ? "Gesellschaftliche Folgen" : "Politischer Zielkonflikt"}</p>
+                  <h2 id={`reflection-${card.id}`} className="cut-dialog__headline font-pixel">{card.title}</h2>
+                  {card.concept !== card.title && <p className="cut-reflection__concept">{card.concept}</p>}
+                  <p className="cut-dialog__text">{card.explanation}</p>
+                  <p className="cut-dialog__text cut-reflection__question">{card.reflectionQuestion}</p>
+                  {savedConcept && onRemember && <button type="button" className="cut-save font-pixel" disabled={rememberedIds.includes(savedConcept.id)} onClick={() => onRemember(savedConcept.id)}>{rememberedIds.includes(savedConcept.id) ? "Begriff gemerkt ✓" : "Begriff merken +"}</button>}
+                </article> : <p className="cut-dialog__text">{professorLine}</p>}
+              </div>
+            </>
+          ) : stage ? <div className="cut-dialog__body"><p className="cut-dialog__text cut-dialog__text--stage">{stage}</p></div> : current && discussionPhase(phase) && (
             <>
               <div className="cut-dialog__portrait" aria-hidden="true"><VisitorFigure visitor={current} single mood={phase === "talk" ? MOODS[current.stance] : "neutral"} /></div>
               <div className="cut-dialog__body">
@@ -303,8 +371,8 @@ export function Cutscene({ visitors: incoming, decision, caption = "Deine Entsch
             </>
           )}
           <div className="cut-dialog__controls">
-            <span className="cut-dialog__progress px-num">{phase === "final" ? "Fazit" : `${index + 1}/${visitors.length}`}</span>
-            <button type="button" className="cut-next font-pixel" onClick={next} autoFocus>{phase === "final" ? "Zur Entscheidung ▸" : "Weiter ▸"}</button>
+            <span className="cut-dialog__progress px-num">{card ? `${cardIndex + 1} / ${reflection!.cards.length}` : professorPresent ? "Denkpause" : phase === "final" ? "Fazit" : stage ? "" : `${index + 1}/${visitors.length}`}</span>
+            <button type="button" className="cut-next font-pixel" onClick={event => { if (event.detail < 2) next(); }} autoFocus disabled={phase === "professor-introduction" && !reflection}>{card && cardIndex === reflection!.cards.length - 1 ? "Zur Entscheidung ▸" : phase === "final" ? reflectionContext ? "Zur Denkpause ▸" : "Zur Entscheidung ▸" : "Weiter ▸"}</button>
           </div>
         </div>
       )}

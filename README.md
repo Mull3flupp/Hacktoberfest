@@ -58,7 +58,15 @@ Die Anbindung liegt in [character-reactions.ts](src/lib/server/character-reactio
 
 Eine Bürgerstimme erhält eine eigene HMAC-Signatur, gebunden an Welt, Vorschau und Zielrevision. Sie kann keine Kennzahlen ändern und gehört nicht zum bestätigungspflichtigen Weltzustand. Der Browser speichert die Stimmen des letzten bestätigten Beschlusses separat unter `polyvox-citizen-voices-v1`; verspätete Antworten dürfen weiter eintreffen, solange derselbe Beschluss aktuell ist. Beim nächsten Beschluss wird die eigene vorherige Stimme signiert als Kontext übergeben. Andere Figuren, fremde Welten und nachträglich veränderte Stimmen werden serverseitig zurückgewiesen. Abgebrochene Vorschauen werden beim Neuladen nicht wiederhergestellt. Nach Ablauf der zehnminütigen Vorschau können dafür keine neuen Stimmen angefragt werden.
 
-Die Bestätigung bleibt ohne Modellaufruf möglich, auch wenn noch Stimmen laden oder fehlen. Alte signierte Spielstände mit `characterReactions` bleiben gültig. Fehlende neue Stimmen werden als ausstehend angezeigt und nicht durch erfundene Zitate ersetzt. Die Büro-Sequenz öffnet sich direkt nach der Folgenanalyse mit den bereits bekannten Betroffenen; über „Im Büro ansehen“ lassen sich später auch die inzwischen geladenen festen Figuren ansehen. Die laufende Szene verändert ihre Besucher nicht während des Lesens.
+Die Bestätigung benötigt keinen weiteren Modellaufruf und bleibt auch bei fehlenden Bürgerstimmen möglich, sobald die Denkpause abgeschlossen ist. Alte signierte Spielstände mit `characterReactions` bleiben gültig. Fehlende neue Stimmen werden als ausstehend angezeigt und nicht durch erfundene Zitate ersetzt. Die Büro-Sequenz öffnet sich direkt nach der Folgenanalyse mit den bereits bekannten Betroffenen. Nachgeladene Besucher werden bis zum Ende der Diskussion ergänzt; bereits sprechende Figuren werden nicht ausgetauscht. Über „Im Büro ansehen“ lassen sich die Stimmen später erneut ansehen.
+
+### Professor Igels Denkpause
+
+Vor jedem neuen politischen Beschluss verlassen die Besucher das Büro. Professor Igel kommt durch dieselbe Tür, setzt sich gegenüber an den Tisch und führt durch zwei bis drei kurze Karten: einen passenden politischen Begriff, mögliche gesellschaftliche Folgen und optional einen Zielkonflikt. Jede Karte wird mit „Weiter“ bestätigt; offene Reflexionsfragen werden nicht bewertet. Nach einem neutralen Abschluss steht der Professor auf und geht. Anschließend erscheint die bisherige Vorschau mit „Beschluss bestätigen“ und „Ändern“. Zeitfortschritt und spätere Wiederholungen der Besucher-Sequenz benötigen keine zweite Denkpause.
+
+Der Browser bereitet `/api/simulation/reflection` während der Diskussion vor. Der Endpunkt prüft die signierte aktuelle Vorschau und die Signaturen tatsächlich gezeigter Bürgerstimmen. Gemma erhält den Vorschlag, Besucherargumente, bisherige Entscheidungen und offene Folgen; die Antwort wird mit Zod auf zwei bis drei unterschiedliche Karten geprüft. Der Modellaufruf ist auf 18 Sekunden begrenzt. Ist beim Hinsetzen keine gültige Antwort vorhanden, verwendet die Szene sofort Karten aus den konkreten Vorteilen, Belastungen, Annahmen und späteren Folgen dieser Vorschau. Späte Antworten tauschen laufende Karten nicht aus. Diese Lernhilfe verändert weder die Analyse noch den Weltzustand.
+
+Einführung, Erklärungen, Reflexionsfragen und Abschluss verwenden dieselbe feste Professor-Stimme und denselben Audiomanager wie der Tutor. Kartenwechsel brechen Sprache und ausstehende TTS-Anfragen ab. „Ton an/aus“ funktioniert auch im Dialog; Musik-Ducking und Türgeräusche bleiben erhalten. Escape und „Animation kürzen“ überspringen nur Bewegungen, keine Lernkarten. Passende Begriffe aus der vorhandenen Kartei lassen sich mit „Begriff merken“ speichern; es entsteht kein zusätzlicher Lernspeicher.
 
 Für Diagnose ohne Prompt- oder Schlüsselprotokollierung kann `GEMMA_LOG_TIMINGS=1` gesetzt werden. Der Stimmen-Endpunkt protokolliert dann nur Figuren-ID und Laufzeit.
 
@@ -66,7 +74,7 @@ Für Diagnose ohne Prompt- oder Schlüsselprotokollierung kann `GEMMA_LOG_TIMING
 
 1. Landesname, Vision, zwei Versprechen und Ausgangsverfassung wählen. Dieser Einstieg verwendet feste Ausgangsbedingungen.
 2. Eine eigene Maßnahme eingeben. Gemma interpretiert sie im Kontext der bisherigen Welt und liefert Annahmen, Vorteile, Kosten, Risiken, Akteursreaktionen sowie sofortige und spätere Modellfolgen.
-3. Die signierte Vorschau prüfen und ausdrücklich bestätigen. Erst dann ändern sich Kennzahlen, Institutionen und Weltfakten; bereits angekündigte fällige Folgen treten zusätzlich ein.
+3. Besucher anhören, Professor Igels Denkpause durchgehen und danach die signierte Vorschau prüfen und ausdrücklich bestätigen. Erst dann ändern sich Kennzahlen, Institutionen und Weltfakten; bereits angekündigte fällige Folgen treten zusätzlich ein.
 4. Frei weiterentscheiden oder Zeit verstreichen lassen. Auch der Zeitfortschritt wird vorab von Gemma analysiert und bestätigt.
 
 Es gibt kein festes Rundenlimit, keine Beschlussquote pro Quartal und kein automatisches Spielende. Eine freiwillige Zwischenbilanz prüft Versprechen und Nachfolge, danach kannst du weiterregieren. Lernkarten, Texttutor und ein optionaler ElevenLabs-Sprachdialog begleiten die Simulation.
@@ -75,7 +83,7 @@ Kennzahlen und Akteure sind fiktiv. Ein nominaler Preis wie „2 €“ ist ein 
 
 ## Modell, Speichern und Grenzen
 
-Der Server prüft die strukturierte Modellausgabe und begrenzt technisch unplausible Einzelsprünge. Eindeutig im falschen Container gelieferte Gruppen- oder Kennzahlenschlüssel werden vor dieser Prüfung richtig zugeordnet, ohne Werte zu verändern. Unbekannte Schlüssel, widersprüchliche Doppelangaben und überhöhte Werte werden weiter abgelehnt. Signierte Vorschauen und Spielstände werden dabei niemals nachträglich umgeschrieben. Die konkreten Folgen stammen aus Gemmas Analyse, nicht aus einem Optionskatalog. Es gibt im aktiven Modus keinen kuratierten Ersatz für ausgefallene Modellaufrufe.
+Der Server prüft die strukturierte Modellausgabe und begrenzt technisch unplausible Einzelsprünge. Eindeutig im falschen Container gelieferte Gruppen- oder Kennzahlenschlüssel werden vor dieser Prüfung richtig zugeordnet, ohne Werte zu verändern. Unbekannte Schlüssel, widersprüchliche Doppelangaben und überhöhte Werte werden weiter abgelehnt. Signierte Vorschauen und Spielstände werden dabei niemals nachträglich umgeschrieben. Die konkreten Folgen stammen aus Gemmas Analyse, nicht aus einem Optionskatalog. Ausgefallene Weltanalysen werden nicht durch erfundene Beschlüsse ersetzt; nur die Denkpause kann auf die bereits vorhandene Analyse zurückgreifen.
 
 HMAC-Signaturen schützen Weltzustand und Vorschläge vor Veränderungen im Browser. Eine Vorschau gilt zehn Minuten und ist an Welt-ID, Revision und den exakten Ausgangszustand gebunden. Die Bestätigung ruft kein weiteres Modell auf. Diese Integritätsprüfung ersetzt keine Benutzeranmeldung und verwaltet keinen gemeinsamen Mehrspieler-Weltstand.
 
@@ -128,6 +136,6 @@ npm run build
 
 Tests prüfen freie Modellausgaben, Signaturen, veränderte und veraltete Vorschläge, verzögerte Folgen, begrenzten Kontext und Anbieterfehler. Anbieterantworten sind dabei gemockt; echte Modell- und Sprachaufrufe werden separat mit gültigen Zugängen geprüft. Die ursprünglichen Regeltests bleiben erhalten.
 
-Manueller Durchlauf: Land gründen → freie Maßnahme analysieren → Vorschau bestätigen → Folgen und Weltfakten ansehen → Zeitfortschritt bestätigen → Lernkarte beantworten → Zwischenbilanz öffnen → weiterregieren → Seite neu laden und fortsetzen.
+Manueller Durchlauf: Land gründen → freie Maßnahme analysieren → Besucher anhören → Professor und zwei bis drei Karten durchgehen (auch Escape, Doppelklick und Stummschaltung prüfen) → Vorschau bestätigen oder ändern → Folgen und Weltfakten ansehen → Zeitfortschritt bestätigen → Lernkarte beantworten → Zwischenbilanz öffnen → weiterregieren → Seite neu laden und fortsetzen.
 
 Als Next.js-Projekt bei Vercel importierbar. Environment-Variablen einschließlich dauerhaftem Signaturschlüssel dort setzen; Sprachzugriff braucht HTTPS oder localhost. Eine öffentliche Bereitstellung und ein Demo-Video sind separate Arbeitsschritte.
