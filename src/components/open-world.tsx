@@ -21,7 +21,7 @@ import { VoicePanel, type VoiceBridge } from "./voice-panel";
 import { ProfessorVoice } from "./professor-voice";
 import { isMuted, playSoundEffect, setMuted, speakCharacter, speakProfessor, startBackgroundMusic, stopCurrentSpeech, subscribeMuted } from "@/lib/audio/manager";
 import { FeedbackSheet, Gruender, MoodMeter, PixelButton, PixelCard, ProfessorIgel, ProgressBar, RichterFrosch, SceneCard, cn } from "./ui";
-import { AnalysisDetails, EffectChips, PixelNotice, WorldMetrics, format } from "./world-panels";
+import { AnalysisDetails, EffectChips, PixelNotice, WorldMetrics, format, type CaseCards } from "./world-panels";
 
 type Screen = "setup" | "desk" | "balance" | "library" | "chronicle";
 type Busy = "start" | "analyze" | "commit" | null;
@@ -88,7 +88,8 @@ export function OpenWorld() {
   const learningRef = useRef<LearningCollection>(learning);
   const learningLoaded = useRef(false);
   const cardJobRunning = useRef<string | null>(null);
-  const [learningFocus, setLearningFocus] = useState<ConceptId | undefined>();
+  const [learningFocus, setLearningFocus] = useState<string | undefined>();
+  const [newCards, setNewCards] = useState<{ count: number; title: string } | null>(null);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [tutoring, setTutoring] = useState(false);
@@ -159,6 +160,8 @@ export function OpenWorld() {
           existing: learningRef.current.cards.map(card => ({ title: card.title, learningPoint: card.learningPoint, dedupeKey: card.dedupeKey })),
         });
         const next = acceptGeneratedCards(learningRef.current, job.proposalId, result.cards);
+        const added = next.cards.length - learningRef.current.cards.length;
+        if (added > 0) setNewCards({ count: added, title: next.cards.at(-1)!.origin.decisionTitle });
         cardJobRunning.current = null;
         updateLearning(next);
       } catch (cause) {
@@ -325,7 +328,16 @@ export function OpenWorld() {
     rememberConcept: remember,
   };
 
-  function openConcept(id: ConceptId) { setLearningFocus(id); setScreen("library"); }
+  function openConcept(id: string) { setLearningFocus(id); setNewCards(null); setScreen("library"); }
+
+  /** Lernkarten, die aus dem zuletzt bestätigten Beschluss entstanden sind (oder gerade entstehen). */
+  function lastCaseCards(world: WorldState): CaseCards | undefined {
+    const cards = learning.cards.filter(card => card.origin.worldId === world.id && card.origin.round === world.revision);
+    if (cards.length) return { cards, status: "done" };
+    const job = learning.jobs.find(item => item.status === "pending" || item.status === "failed");
+    // Ohne Karten und ohne laufenden Auftrag (z. B. nach "Ein Quartal weiter") keinen Abschnitt zeigen.
+    return job ? { cards: [], status: job.status } : undefined;
+  }
 
   if (!ready) return <main className="pixel-shell" aria-busy="true"><PixelCard title="Dein Land wird geladen …"><div className="grid gap-3 sm:grid-cols-3" aria-hidden="true"><div className="h-24 bg-[var(--px-gray)]" /><div className="h-24 bg-[var(--px-gray)]" /><div className="h-24 bg-[var(--px-gray)]" /></div></PixelCard></main>;
   if (newLandIntro) return <IntroSlides onDone={() => { setNewLandIntro(false); setSetupStep(1); setScreen("setup"); setError(""); }} />;
@@ -364,17 +376,18 @@ export function OpenWorld() {
           <PixelCard className="space-y-4">
             <form className="space-y-3" onSubmit={event => { event.preventDefault(); void analyze(); }} aria-busy={busy === "analyze"}><label id="decision-title" htmlFor="world-decision" className="font-pixel text-2xl">Was willst du verändern?</label><textarea ref={decisionInput} id="world-decision" className="min-h-28" value={draft} maxLength={1500} disabled={!!busy} onChange={event => updateDraft(event.target.value)} placeholder="Zum Beispiel: Ich will den Dönerpreis auf 2 € begrenzen." aria-describedby="decision-help" required /><div className="flex flex-wrap items-center justify-between gap-3"><p id="decision-help" className="text-xs tabular-nums">{draft.length}/1500</p><PixelButton variant="info" type="submit" disabled={!!busy || !draft.trim()}>{busy === "analyze" ? "Analysiere …" : "Folgen analysieren →"}</PixelButton></div></form>
             {error && !proposal && <PixelNotice error>{error}</PixelNotice>}
+            {newCards && !proposal && <PixelNotice><span className="font-bold">+{newCards.count} neue Lernkarten</span> zu „{newCards.title}“ liegen in deiner Lernkartei. <PixelButton size="sm" variant="secondary" onClick={() => openConcept(learning.cards.at(-1)!.id)}>Jetzt ansehen</PixelButton></PixelNotice>}
             <details className="pixel-details"><summary>Beispielideen</summary><div className="mt-3 flex flex-wrap gap-2">{examples.map((text, index) => <PixelButton key={text} size="sm" variant="secondary" disabled={!!busy} onClick={() => fillDraft(text)}>{["Döner für 2 €", "Kostenlose Bahnen", "Vier-Tage-Woche"][index]}</PixelButton>)}</div></details>
           </PixelCard>
           {busy === "analyze" && <p className="flex items-center gap-3 text-sm" role="status"><ProfessorIgel bob={false} size={40} />Folgen werden analysiert …</p>}
           {proposal && <section ref={analysisPanel} tabIndex={-1} className="scroll-mt-5" aria-labelledby="analysis-title"><PixelCard tone="blue" className="space-y-5"><p className="font-pixel text-sm uppercase">Vorschau · noch kein Beschluss</p><h2 id="analysis-title" className="font-pixel text-balance text-3xl">{proposal.proposal.analysis.title}</h2><blockquote className="border-l-4 border-[var(--px-blue-dark)] pl-4 text-sm">{proposal.proposal.decision}</blockquote><p className="leading-relaxed">{proposal.proposal.analysis.interpretation}</p><details className="pixel-details"><summary>Begründung</summary><p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">{proposal.proposal.analysis.analysis}</p></details>
-            <AnalysisDetails analysis={proposal.proposal.analysis} onConcept={openConcept} onRemember={remember} rememberedIds={rememberedIds} />
+            <AnalysisDetails analysis={proposal.proposal.analysis} onConcept={openConcept} onRemember={remember} rememberedIds={rememberedIds} caseCards={proposal.proposal.kind === "decision" ? { cards: [], status: "preview" } : undefined} />
             <div className="flex flex-wrap gap-3 border-t-2 border-[var(--px-blue-dark)] pt-4"><PixelButton variant="info" disabled={!!busy || expired || reflectionRequired} onClick={() => void commit()}>{busy === "commit" ? "Wird übernommen …" : proposal.proposal.kind === "advance" ? "Quartal abschließen" : "Beschluss bestätigen"}</PixelButton><PixelButton variant="secondary" disabled={!!busy} onClick={() => { stopCutscene(); updateProposal(null); decisionInput.current?.focus(); }}>Ändern</PixelButton></div>
             {error && <PixelNotice error>{error}</PixelNotice>}
             {expired && <PixelNotice error>Diese Vorschau ist abgelaufen. Dein Stand ist unverändert. <PixelButton size="sm" variant="secondary" disabled={!!busy} onClick={() => void analyze(proposal.proposal.kind)}>Erneut analysieren</PixelButton></PixelNotice>}
           </PixelCard></section>}
           {!proposal && <div className="flex justify-end"><PixelButton size="sm" variant="secondary" disabled={!!busy} onClick={() => void analyze("advance")}>Ein Quartal weiter →</PixelButton></div>}
-          {!proposal && state.lastAnalysis && <details className="pixel-details border-[length:var(--px-border)] border-[var(--px-ink)] bg-[var(--px-white)] p-4"><summary>Dein letzter Beschluss: {state.lastAnalysis.title}</summary><div className="mt-5 space-y-5"><p>{state.lastAnalysis.analysis}</p><AnalysisDetails analysis={state.lastAnalysis} onConcept={openConcept} onRemember={remember} rememberedIds={rememberedIds} /></div></details>}
+          {!proposal && state.lastAnalysis && <details className="pixel-details border-[length:var(--px-border)] border-[var(--px-ink)] bg-[var(--px-white)] p-4"><summary>Dein letzter Beschluss: {state.lastAnalysis.title}</summary><div className="mt-5 space-y-5"><p>{state.lastAnalysis.analysis}</p><AnalysisDetails analysis={state.lastAnalysis} onConcept={openConcept} onRemember={remember} rememberedIds={rememberedIds} caseCards={lastCaseCards(state)} /></div></details>}
           {!proposal && !!state.suggestions.length && <section aria-labelledby="world-ideas"><h3 id="world-ideas" className="font-pixel mb-3 text-xl">Weitere Ideen</h3><div className="grid gap-2">{state.suggestions.map((text, index) => <PixelButton key={`${index}:${text}`} variant="secondary" className="justify-between text-left font-body normal-case" disabled={!!busy} onClick={() => fillDraft(text)}>{text}<span aria-hidden="true">↗</span></PixelButton>)}</div></section>}
         </div>
         <aside className="min-w-0 space-y-5" aria-label="Dein Land im Überblick">

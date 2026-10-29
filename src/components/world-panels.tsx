@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { getConcept } from "@/lib/game/engine";
+import type { DynamicLearningCard } from "@/lib/game/learning-collection";
 import type { ConceptId, Institutions } from "@/lib/game/types";
 import type { WorldAnalysis, WorldEffects, WorldState } from "@/lib/simulation/types";
 import { BLOB_COLORS, CitizenBlob, ConceptCard, PixelCard, ProfessorIgel, StatTile } from "./ui";
@@ -31,7 +32,9 @@ export function EffectChips({ effects }: { effects: WorldEffects }) {
   </div>;
 }
 
-export function AnalysisDetails({ analysis, onConcept, onRemember, rememberedIds }: { analysis: WorldAnalysis; onConcept: (id: ConceptId) => void; onRemember: (id: string) => string; rememberedIds: ConceptId[] }) {
+export type CaseCards = { cards: DynamicLearningCard[]; status: "preview" | "pending" | "failed" | "done" };
+
+export function AnalysisDetails({ analysis, onConcept, onRemember, rememberedIds, caseCards }: { analysis: WorldAnalysis; onConcept: (id: string) => void; onRemember: (id: string) => string; rememberedIds: ConceptId[]; caseCards?: CaseCards }) {
   return <div className="space-y-6">
     <section><h3 className="font-pixel mb-3 text-xl">Änderungen</h3><EffectChips effects={analysis.immediate} />
       {!Object.values(analysis.immediate.metrics).some(Boolean) && !Object.values(analysis.immediate.groups).some(Boolean) && <p className="mt-2 text-sm">Keine direkten Änderungen der Kennzahlen vorgesehen.</p>}
@@ -44,7 +47,8 @@ export function AnalysisDetails({ analysis, onConcept, onRemember, rememberedIds
       {analysis.factsToAdd.length > 0 && <><h4 className="mt-4 font-bold">Gilt nach deiner Bestätigung</h4><ul className="pixel-list mt-2 text-sm">{analysis.factsToAdd.map((fact, index) => <li key={index}>{fact}</li>)}</ul></>}
       {analysis.factsToRemove.length > 0 && <><h4 className="mt-4 font-bold">Wird dadurch abgelöst</h4><ul className="pixel-list mt-2 text-sm">{analysis.factsToRemove.map((fact, index) => <li key={index}>{fact}</li>)}</ul></>}
     </details>
-    {analysis.conceptIds.length > 0 && <details className="pixel-details"><summary>Passende Lernkarten ({analysis.conceptIds.length})</summary><div className="mt-3 grid gap-4 sm:grid-cols-2">{analysis.conceptIds.map(id => { const card = getConcept(id); return card && <ConceptCard key={id} term={card.title} definition={card.explanation} source={card.sources[0]?.title} saved={rememberedIds.includes(id)} onExplain={() => onConcept(id)} onSave={() => onRemember(id)} />; })}</div></details>}
+    {caseCards && <section><h3 className="font-pixel mb-3 text-xl">Neue Lernkarten zu diesem Fall</h3>{caseCards.cards.length > 0 ? <div className="grid gap-4 sm:grid-cols-2">{caseCards.cards.map(card => <ConceptCard key={card.id} term={card.title} definition={card.explanation} source="KI-generiert aus diesem Beschluss" saved onExplain={() => onConcept(card.id)} />)}</div> : <p className="text-sm">{{ preview: "Sobald du den Beschluss bestätigst, erstellt Gemma 2–3 neue Lernkarten zu genau diesem Fall und legt sie in deine Lernkartei.", pending: "Gemma erstellt gerade 2–3 neue Lernkarten zu diesem Fall …", failed: "Die Lernkarten zu diesem Fall konnten nicht erstellt werden. In der Lernkartei kannst du es erneut versuchen.", done: "Zu diesem Fall gab es keine neuen Lernkarten, die sich von deinen vorhandenen unterscheiden." }[caseCards.status]}</p>}</section>}
+    {analysis.conceptIds.length > 0 && <details className="pixel-details"><summary>Grundlagen dazu ({analysis.conceptIds.length})</summary><div className="mt-3 grid gap-4 sm:grid-cols-2">{analysis.conceptIds.map(id => { const card = getConcept(id); return card && <ConceptCard key={id} term={card.title} definition={card.explanation} source={card.sources[0]?.title} saved={rememberedIds.includes(id)} onExplain={() => onConcept(id)} onSave={() => onRemember(id)} />; })}</div></details>}
   </div>;
 }
 

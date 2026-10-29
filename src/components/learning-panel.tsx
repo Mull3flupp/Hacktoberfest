@@ -19,7 +19,7 @@ export interface LearningPanelProps {
   onChange: (next: LearningProgress[]) => void;
   onClose: () => void;
   onAskTutor?: (question: string, conceptId?: ConceptId) => Promise<TutorAnswer>;
-  initialConceptId?: ConceptId;
+  initialConceptId?: string;
   pixel?: boolean;
   dynamicCards?: DynamicLearningCard[];
   jobs?: { proposalId: string; status: "pending" | "failed"; error?: string }[];
@@ -29,7 +29,7 @@ export interface LearningPanelProps {
 
 export function LearningPanel({ progress, revision, onChange, onClose, onAskTutor, initialConceptId, pixel,
   dynamicCards = [], jobs = [], skippedGenerations = 0, onRetryJob }: LearningPanelProps) {
-  const [selectedId, setSelectedId] = useState<string>(initialConceptId ?? "social-contract");
+  const [selectedId, setSelectedId] = useState<string>(initialConceptId ?? dynamicCards.at(-1)?.id ?? "social-contract");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "editorial" | "generated" | "due">("all");
   const [mode, setMode] = useState<"explore" | "quiz">("explore");
@@ -54,7 +54,7 @@ export function LearningPanel({ progress, revision, onChange, onClose, onAskTuto
   }, []);
 
   useEffect(() => {
-    if (!initialConceptId || !getConcept(initialConceptId)) return;
+    if (!initialConceptId || !getConcept(initialConceptId) && !dynamicCards.some(card => card.id === initialConceptId)) return;
     epoch.current += 1;
     setSelectedId(initialConceptId); setMode("explore"); setAnswerIndex(null); setChoiceId(null);
     setTutorAnswer(null); setTutorError(""); setTutorBusy(false);
@@ -62,7 +62,8 @@ export function LearningPanel({ progress, revision, onChange, onClose, onAskTuto
   }, [initialConceptId]);
 
   const due = dueCards(progress, revision, now, dynamicCards, pixel);
-  const allCards = [...concepts, ...dynamicCards];
+  // Neueste Fallkarten zuerst, die sechs Grundlagen danach.
+  const allCards = [...[...dynamicCards].reverse(), ...concepts];
   const needle = query.trim().toLocaleLowerCase("de-DE");
   const filteredCards = allCards.filter(card => {
     const generated = "generated" in card;
@@ -146,7 +147,7 @@ export function LearningPanel({ progress, revision, onChange, onClose, onAskTuto
     <div className="flex flex-wrap gap-3"><label className="min-w-52 flex-1">Sammlung durchsuchen<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Beschluss oder Lernpunkt" /></label><label>Filtern<select value={filter} onChange={event => setFilter(event.target.value as typeof filter)}><option value="all">Alle Karten</option><option value="editorial">Grundlagen</option><option value="generated">Aus Beschlüssen</option><option value="due">Jetzt fällig</option></select></label></div>
     <div className="max-h-72 overflow-auto flex flex-wrap content-start gap-2" role="group" aria-label="Lernkarte auswählen">{filteredCards.map(card => <PixelButton size="sm" variant={card.id === selected.id ? "tutor" : "secondary"} aria-pressed={card.id === selected.id} key={card.id} onClick={() => open(card.id)}>{card.title}{"generated" in card ? " · KI" : ""}{progress.some(item => item.conceptId === card.id) ? " ✓" : ""}</PixelButton>)}{!filteredCards.length && <p>Keine passenden Karten gefunden.</p>}</div>
     <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-      <div className="min-w-0 space-y-5">{generated && <PixelCard tone="blue"><p className="text-sm font-bold">KI-generierte Lernkarte</p><p className="mt-2 text-sm">Aus dem Beschluss „{selected.origin.decisionTitle}“ in {selected.origin.countryName}: {selected.origin.decision}</p></PixelCard>}{mode === "explore" ? <><ConceptCard term={selected.title} definition={selected.explanation} example={generated ? selected.learningPoint : contextualHooks[selected.id as ConceptId]} source={generated ? "KI-generiert" : selected.sources[0]?.title} saved={!!saved} onSave={remember} onExplain={onAskTutor ? () => void explainAnswer() : undefined} /><PixelButton variant="tutor" disabled={tutorBusy} onClick={() => open(selected.id, true)}>Verständnis prüfen</PixelButton></> : <PixelCard><SceneCard eyebrow={generated ? "Beschluss verstehen" : questionKind === "understanding" ? "Verständnischeck" : "Transferfrage"} title={question.question} situation={`Was passt zu „${selected.title}“?`} speaker={<ProfessorIgel bob={false} size={48} />} speakerName="Professor Igel" options={question.options.map((option, index) => ({ id: String(index), label: option }))} selectedId={choiceId} onSelect={setChoiceId} onConfirm={() => { if (choiceId !== null) answer(Number(choiceId)); }} confirmLabel="Antwort prüfen" locked={answerIndex !== null} /></PixelCard>}
+      <div className="min-w-0 space-y-5">{generated && <PixelCard tone="blue"><p className="text-sm font-bold">KI-generierte Lernkarte</p><p className="mt-2 text-sm">Aus dem Beschluss „{selected.origin.decisionTitle}“ in {selected.origin.countryName}: {selected.origin.decision}</p></PixelCard>}{mode === "explore" ? <><ConceptCard term={selected.title} definition={selected.explanation} example={generated ? undefined : contextualHooks[selected.id as ConceptId]} source={generated ? "KI-generiert" : selected.sources[0]?.title} saved={!!saved} onSave={remember} onExplain={onAskTutor ? () => void explainAnswer() : undefined} /><PixelButton variant="tutor" disabled={tutorBusy} onClick={() => open(selected.id, true)}>Verständnis prüfen</PixelButton></> : <PixelCard><SceneCard eyebrow={generated ? "Beschluss verstehen" : questionKind === "understanding" ? "Verständnischeck" : "Transferfrage"} title={question.question} situation={`Was passt zu „${selected.title}“?`} speaker={<ProfessorIgel bob={false} size={48} />} speakerName="Professor Igel" options={question.options.map((option, index) => ({ id: String(index), label: option }))} selectedId={choiceId} onSelect={setChoiceId} onConfirm={() => { if (choiceId !== null) answer(Number(choiceId)); }} confirmLabel="Antwort prüfen" locked={answerIndex !== null} /></PixelCard>}
         <div aria-live="polite">{tutorBusy && <p role="status" className="text-sm">Antwort wird erstellt …</p>}{tutorError && <PixelCard tone="red" role="alert">{tutorError}</PixelCard>}{tutorAnswer && <PixelCard title="Professor Igel"><p className="whitespace-pre-wrap text-sm leading-relaxed">{tutorAnswer.answer}</p></PixelCard>}</div>
       </div>
       <PixelCard className="space-y-4"><p className="text-sm">{saved ? nextReviewLabel(saved) : "Noch nicht gemerkt"}</p><details className="pixel-details"><summary>Quellen & Grenzen</summary>{generated ? <p className="mt-3 text-sm leading-relaxed">Diese Karte wurde aus einer Gemma-Analyse erzeugt und nicht redaktionell geprüft. Prüfe strittige Fakten und die begründete Antwort kritisch.</p> : <><p className="mt-3 text-sm leading-relaxed">{selected.limitation}</p><ul className="pixel-list mt-3 text-sm">{selected.sources.map(source => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a></li>)}</ul></>}</details></PixelCard>
