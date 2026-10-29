@@ -161,6 +161,22 @@ test("learning cards require a confirmed decision, never a preview or discarded 
   assert.equal(cardCalls, 1);
 });
 
+test("each confirmed case asks for 2–3 new cards and keeps cards whose decision link is only a label", async () => {
+  const world = snapshot(); mockGoogle();
+  const analysis = await preview(world);
+  const confirmed = await commit(request("commit", { snapshot: world, analysis }));
+  const next = (await confirmed.json()).snapshot as SignedWorld;
+  let prompt = "";
+  mockGoogle({ cards: [{ ...validLearningCard, decisionConnection: "Dönerpreis" }, { ...validLearningCard, dedupeKey: "preisgrenze-marge", title: "Marge bei Preisgrenzen" }] }, value => { prompt = value; });
+  const result = await learningCards(request("learning-cards", { snapshot: next, analysis, existing: [] }));
+  assert.equal(result.status, 200);
+  const cards = (await result.json()).cards as DynamicLearningCard[];
+  assert.equal(cards.length, 2);
+  assert.ok(cards[0].explanation.startsWith(`Bezug zum Beschluss „${analysis.proposal.analysis.title}“: Dönerpreis`));
+  assert.ok(prompt.includes("Erzeuge 2–3 verschiedene, konkrete Karten zu genau diesem Fall"));
+  assert.ok(prompt.includes("Wiederhole nicht die sechs Grundlagenbegriffe"));
+});
+
 test("an invalid or opinion-based card does not undo a confirmed decision", async () => {
   const world = snapshot(); mockGoogle();
   const analysis = await preview(world);
